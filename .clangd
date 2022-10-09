@@ -1,0 +1,4 @@
+CompileFlags:
+    Add:
+        - "--include-path=qemu/include/qemu/"
+    CompilationDatabase: builddir

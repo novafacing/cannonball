@@ -1,0 +1,6 @@
+option(
+    'qemu_root',
+    type: 'string',
+    value: 'qemu',
+    description: 'QEMU root directory (defaults to submodule qemu)',
+)
