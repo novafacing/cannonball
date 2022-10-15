@@ -9,7 +9,12 @@ qemu_inc_dir = include_directories(qemu_includes)
 
 inc_dir = include_directories('include')
 
-src_files = ['src/fodder.c', 'src/qemu.c']
+src_files = [
+    'src/args.c',
+    'src/cleanup.c',
+    'src/install.c',
+    'src/logging.c',
+]
 
 libfodder = shared_module(
     'fodder',
