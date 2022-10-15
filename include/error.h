@@ -24,7 +24,9 @@ typedef enum ErrorCode {
     // Out of memory
     OutOfMemory = 6,
     // General argument parsing error, also returned when the `help` argument is used
-    ArgumentErrorOrHelp = 7,
+    ArgumentError = 7,
+    // An argument handler signaled for exit
+    ArgumentHandlerExit = 8,
 } ErrorCode;
 
 #endif // ERROR_H

@@ -14,13 +14,20 @@ typedef struct FreeWrapper {
     void *obj;
 } FreeWrapper;
 
+// Dynamically resizable freewrapper container
 typedef struct FreeWrapperContainer {
     FreeWrapper *wrappers;
     size_t num_wrappers;
     size_t capacity;
 } FreeWrapperContainer;
 
+// Setup cleanup system to deallocate long-lived memory at plugin exit.
+// This should be used sparingly (for example it is used for deallocating
+// program arguments))
 void cleanup_init(qemu_plugin_id_t id);
+
+// Add a wrapper to the cleanup process. If some object `obj` needs to be deallocated
+// at plugin exit, add a wrapper to do so here.
 void cleanup_add_wrapper(void (*wrapper)(void *), void *obj);
 
 #endif // CLEANUP_H

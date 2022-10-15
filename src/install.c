@@ -18,23 +18,21 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_version = QEMU_PLUGIN_VERSION;
 QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id, const qemu_info_t *info,
                                            int argc, char **argv) {
 
-    Args *args = NULL;
     ErrorCode rv = Success;
 
     cleanup_init(id);
 
-    if ((args = args_parse(argc, argv)) == NULL) {
-        rv = ArgumentErrorOrHelp;
-        // No error message here because this can also be a help message
-        goto cleanup;
+    if ((rv = args_parse(argc, argv)) != Success) {
+        // We never want to error out of qemu plugin install, otherwise our cleanup
+        // code won't run
+        return Success;
     }
 
-    if ((rv = log_init(args->log_file)) != Success) {
-        goto cleanup;
+    if ((rv = log_init(args_get()->log_file)) != Success) {
+        // We never want to error out of qemu plugin install, otherwise our cleanup
+        // code won't run
+        return Success;
     }
 
-    log_info("Logging configured\n");
-
-cleanup:
-    return rv;
+    return Success;
 }

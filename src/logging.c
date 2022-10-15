@@ -10,7 +10,7 @@
 
 const char *log_file_path = NULL;
 static FILE *log_file = NULL;
-static LogLevel log_level = Info;
+static LogLevel log_level = Debug;
 
 static const char *level_strings[] = {
     [Error] = "ERROR",
@@ -102,19 +102,30 @@ cleanup:
         free((void *)log_file_path);
     }
 
+    if (rv == Success) {
+        log_info("Logging configured.\n");
+    }
+
     return rv;
 }
 
 void log_set_level(LogLevel level) { log_level = level; }
 
 void log_message(LogLevel level, const char *format, va_list args) {
+    FILE *outs = log_file;
     if (level > log_level) {
         return;
     }
 
-    fprintf(log_file, "[%5s] ", level_strings[level]);
+    if (outs == NULL) {
+        // If logging isn't initialized yet, or there was some logging error, we still
+        // want to display messages
+        outs = stderr;
+    }
 
-    vfprintf(log_file, format, args);
+    fprintf(outs, "[%5s] ", level_strings[level]);
+
+    vfprintf(outs, format, args);
 }
 
 void log_error(const char *format, ...) {

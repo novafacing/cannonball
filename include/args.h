@@ -5,6 +5,8 @@
 #include <stddef.h>
 #include <sys/types.h>
 
+#include "error.h"
+
 // Argument definitions for to the plugin
 
 #define HANDLER_EXIT (false)
@@ -12,7 +14,7 @@
 
 typedef enum ArgType {
     Boolean,
-    Integer,
+    LongLong,
     String,
 } ArgType;
 
@@ -47,6 +49,8 @@ typedef struct Args {
 // Parse arguments to the plugin. Arguments are passed in via the QEMU command line
 // like: -plugin libplugin.so,arg1=val1,arg2=val2
 //
-Args *args_parse(int argc, char **argv);
+ErrorCode args_parse(int argc, char **argv);
+
+const Args *args_get(void);
 
 #endif // ARGS_H
