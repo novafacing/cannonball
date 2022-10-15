@@ -69,7 +69,6 @@ it isn't because your code is wrong if it isn't working for you either.
 * `char *qemu_plugin_insn_disas(const struct qemu_plugin_insn *insn);`
 * `const char *qemu_plugin_insn_symbol(const struct qemu_plugin_insn *insn);`
 * `void qemu_plugin_vcpu_for_each(qemu_plugin_id_t id, qemu_plugin_vcpu_simple_cb_t cb);`
-* `void qemu_plugin_register_flush_cb(qemu_plugin_id_t id, qemu_plugin_simple_cb_t cb);`
 * `int qemu_plugin_n_vcpus(void);`
 * `int qemu_plugin_n_max_vcpus(void);`
 * `void qemu_plugin_outs(const char *string);`
@@ -95,3 +94,4 @@ it isn't because your code is wrong if it isn't working for you either.
 * `void qemu_plugin_register_vcpu_syscall_cb(qemu_plugin_id_t id, qemu_plugin_vcpu_syscall_cb_t cb);`
 * `void qemu_plugin_register_vcpu_syscall_ret_cb(qemu_plugin_id_t id, qemu_plugin_vcpu_syscall_ret_cb_t cb);`
 * `void qemu_plugin_register_atexit_cb(qemu_plugin_id_t id, qemu_plugin_udata_cb_t cb, void *userdata); `
+* `void qemu_plugin_register_flush_cb(qemu_plugin_id_t id, qemu_plugin_simple_cb_t cb);`

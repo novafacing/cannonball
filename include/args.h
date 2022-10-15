@@ -44,6 +44,10 @@ typedef struct Arg {
 typedef struct Args {
     char *log_file;
     bool *trace_pc;
+    bool *trace_reads;
+    bool *trace_writes;
+    bool *trace_syscalls;
+    bool *trace_instrs;
 } Args;
 
 // Parse arguments to the plugin. Arguments are passed in via the QEMU command line

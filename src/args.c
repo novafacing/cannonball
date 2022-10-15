@@ -5,7 +5,6 @@
 #include <string.h>
 
 #include "args.h"
-#include "cleanup.h"
 #include "error.h"
 #include "logging.h"
 
@@ -42,6 +41,42 @@ static const Arg options[] = {
         .default_value = "true",
         .help = "Enable program counter tracing. Defaults to true.",
         .entry = offsetof(Args, trace_pc),
+        .handler = NULL,
+    },
+    {
+        .name = "trace_reads",
+        .type = Boolean,
+        .required = false,
+        .default_value = "true",
+        .help = "Enable memory read tracing. Defaults to true.",
+        .entry = offsetof(Args, trace_reads),
+        .handler = NULL,
+    },
+    {
+        .name = "trace_writes",
+        .type = Boolean,
+        .required = false,
+        .default_value = "true",
+        .help = "Enable memory write tracing. Defaults to true.",
+        .entry = offsetof(Args, trace_writes),
+        .handler = NULL,
+    },
+    {
+        .name = "trace_syscalls",
+        .type = Boolean,
+        .required = false,
+        .default_value = "true",
+        .help = "Enable syscall tracing. Defaults to true.",
+        .entry = offsetof(Args, trace_syscalls),
+        .handler = NULL,
+    },
+    {
+        .name = "trace_instrs",
+        .type = Boolean,
+        .required = false,
+        .default_value = "true",
+        .help = "Enable instruction contents tracing. Defaults to true.",
+        .entry = offsetof(Args, trace_instrs),
         .handler = NULL,
     },
 #ifndef RELEASE
@@ -98,8 +133,12 @@ static bool print_help(void) {
 #ifndef RELEASE
 static bool debug_args(void) {
     log_debug("debug args:\n");
-    log_debug("    log_file: %s\n", args->log_file);
-    log_debug("    trace_pc: %d\n", *args->trace_pc);
+    log_debug("    log_file:       %s\n", args->log_file);
+    log_debug("    trace_pc:       %d\n", *args->trace_pc);
+    log_debug("    trace_reads:    %d\n", *args->trace_reads);
+    log_debug("    trace_writes:   %d\n", *args->trace_writes);
+    log_debug("    trace_syscalls: %d\n", *args->trace_syscalls);
+    log_debug("    trace_instrs:   %d\n", *args->trace_instrs);
     return HANDLER_EXIT;
 }
 #endif
@@ -176,7 +215,6 @@ static bool *parse_bool(const char *val) {
 }
 
 static void free_args(void *obj) {
-    log_info("Freeing args %p\n", obj);
     Args *to_free = (Args *)obj;
 
     if (!to_free) {
@@ -215,7 +253,6 @@ ErrorCode args_parse(int argc, char **argv) {
     bool opt_seen = false;
 
     args = (Args *)calloc(1, sizeof(Args));
-    cleanup_add_wrapper(free_args, args);
 
     if (args == NULL) {
         log_error("Failed to allocate memory for args: %s\n", strerror(errno));

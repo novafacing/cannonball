@@ -7,7 +7,6 @@
 #include <stdio.h>
 
 #include "args.h"
-#include "cleanup.h"
 #include "config.h"
 #include "error.h"
 #include "install.h"
@@ -19,8 +18,6 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id, const qemu_info_
                                            int argc, char **argv) {
 
     ErrorCode rv = Success;
-
-    cleanup_init(id);
 
     if ((rv = args_parse(argc, argv)) != Success) {
         // We never want to error out of qemu plugin install, otherwise our cleanup

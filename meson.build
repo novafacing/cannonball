@@ -11,7 +11,6 @@ inc_dir = include_directories('include')
 
 src_files = [
     'src/args.c',
-    'src/cleanup.c',
     'src/install.c',
     'src/logging.c',
 ]
