@@ -1,3 +1,7 @@
+//! This client is used by the QEMU plugin to communicate with the consumer connected to the
+//! UNIX socket. It is very simple and essentially provides two functions: `setup` and `submit`
+//! to create the pipes and socket and start a thread to listen for events, and to submit events
+//! to the socket, respectively.
 use std::ffi::CStr;
 use std::fs::remove_file;
 use std::mem::ManuallyDrop;
@@ -17,6 +21,9 @@ use tokio_util::codec::Framed;
 
 use crate::qemu_event::{QemuEventCodec, QemuEventExec};
 
+/// Run the client's listener thread on the Tokio event loop. This will receive events off of
+/// the receive end of the channel and send them to the UNIX socket. It will batch events for
+/// efficiency.
 pub fn run(
     runtime: ManuallyDrop<Runtime>,
     mut stream: Framed<UnixStream, QemuEventCodec>,
@@ -40,11 +47,16 @@ pub fn run(
     });
 }
 
+/// A handle to the client sender object. This is used to submit events to the thread that pulls
+/// then off of the channel and sends them to the UNIX socket. This struct is opaque to the QEMU
+/// plugin.
 pub struct Sender {
+    /// The sender side of the channel that the client dispatcher thread is pulling events from
     sender: UnboundedSender<QemuEventExec>,
 }
 
 impl Sender {
+    /// Submit an event to the client dispatcher thread over the send side of the channel
     pub fn send(&self, msg: QemuEventExec) {
         match self.sender.send(msg) {
             Ok(_) => {}
@@ -57,6 +69,8 @@ impl Sender {
 }
 
 #[no_mangle]
+/// Setup the UNIX socket and start the client dispatcher thread. This function is called by the
+/// QEMU plugin to initialize the client via FFI
 pub extern "C" fn setup(batch_size: usize, socket: *const c_char) -> *mut Sender {
     let c_str = unsafe { CStr::from_ptr(socket) };
     let c_string = c_str.to_str().unwrap();
@@ -96,6 +110,8 @@ pub extern "C" fn setup(batch_size: usize, socket: *const c_char) -> *mut Sender
 }
 
 #[no_mangle]
+/// Submit an event to the client dispatcher thread. This function is called by the QEMU plugin
+/// to submit events via FFI
 pub extern "C" fn submit(client: *mut Sender, event: *mut QemuEventExec) {
     let sender = unsafe { &mut *client };
     let event = unsafe { &mut *event };
@@ -104,12 +120,15 @@ pub extern "C" fn submit(client: *mut Sender, event: *mut QemuEventExec) {
 }
 
 #[no_mangle]
+/// Destroy the client sender object and stop the Tokio runtime. This function is called by the
+/// QEMU plugin to destroy the client sender object via FFI
 pub extern "C" fn teardown(_client: *mut Sender) {
     // TODO: This should drop the runtime and the channel on QEMU exit if we want to be
     // nitpicky
 }
 
 #[no_mangle]
+/// Debug function to print out a qemu event struct
 pub extern "C" fn dbg_print_evt(event: *mut QemuEventExec) {
     let event = unsafe { &mut *event };
     eprintln!("Event: {:?}", event);

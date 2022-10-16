@@ -11,6 +11,7 @@ fn main() {
         ..Default::default()
     };
 
+    // Generate the C header bindings for the library
     cbindgen::Builder::new()
         .with_crate(crate_dir)
         .with_config(config)
