@@ -27,6 +27,10 @@ typedef enum ErrorCode {
     ArgumentError = 7,
     // An argument handler signaled for exit
     ArgumentHandlerExit = 8,
+    // The instrumentation settings were invalid or some error occurred setting them
+    InstrumentationSettingsError = 9,
+    // The Sender struct could not be initialized or some other setup error
+    SenderInitError = 10,
 } ErrorCode;
 
 #endif // ERROR_H

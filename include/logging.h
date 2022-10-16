@@ -19,6 +19,9 @@ typedef enum LogLevel {
     Debug = 3,
 } LogLevel;
 
+// Free the logging resources
+void log_free(void);
+
 // Initialize the logging subsystem, which is used to output debug, info, warn,
 // error, and fatal messages. This function called during plugin intialization
 // and the log file path is checked to see if it is a valid path. If the containing

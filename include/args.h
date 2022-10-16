@@ -43,17 +43,20 @@ typedef struct Arg {
 
 typedef struct Args {
     char *log_file;
+    char *sock_path;
     bool *trace_pc;
     bool *trace_reads;
     bool *trace_writes;
     bool *trace_syscalls;
     bool *trace_instrs;
+    bool *trace_branches;
 } Args;
 
 // Parse arguments to the plugin. Arguments are passed in via the QEMU command line
 // like: -plugin libplugin.so,arg1=val1,arg2=val2
 //
 ErrorCode args_parse(int argc, char **argv);
+void args_free(void);
 
 const Args *args_get(void);
 

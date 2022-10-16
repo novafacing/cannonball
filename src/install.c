@@ -7,6 +7,7 @@
 #include <stdio.h>
 
 #include "args.h"
+#include "callback.h"
 #include "config.h"
 #include "error.h"
 #include "install.h"
@@ -18,18 +19,28 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id, const qemu_info_
                                            int argc, char **argv) {
 
     ErrorCode rv = Success;
-
     if ((rv = args_parse(argc, argv)) != Success) {
-        // We never want to error out of qemu plugin install, otherwise our cleanup
-        // code won't run
-        return Success;
+        goto cleanup;
     }
 
-    if ((rv = log_init(args_get()->log_file)) != Success) {
-        // We never want to error out of qemu plugin install, otherwise our cleanup
-        // code won't run
-        return Success;
+    const Args *args = args_get();
+
+    if ((rv = log_init(args->log_file)) != Success) {
+        goto cleanup;
     }
 
-    return Success;
+    if ((rv =
+             callback_init(id, *args->trace_pc, *args->trace_reads, *args->trace_writes,
+                           *args->trace_instrs, *args->trace_syscalls,
+                           *args->trace_branches, args->sock_path)) != Success) {
+        goto cleanup;
+    }
+
+cleanup:
+    // TODO: Move this stuff into a cleanup function
+    // args_free();
+    // log_free();
+    // instrumentation_settings_free((InstrumentationSettings *)settings);
+    // settings = NULL;
+    return rv;
 }

@@ -29,17 +29,27 @@ static const Arg options[] = {
         .name = "log_file",
         .type = String,
         .required = false,
-        .default_value = "-",
+        .default_value = "-", // NOTE: "-" is interpreted as stderr NOT stdout -- only
+                              // the binary should print to stdout
         .help = "Path to log file. If not specified, logs to stderr.",
         .entry = offsetof(Args, log_file),
+        .handler = NULL,
+    },
+    {
+        .name = "sock_path",
+        .type = String,
+        .required = false,
+        .default_value = "/dev/shm/fodder.sock",
+        .help = "Path to socket file to connect to consumer.",
+        .entry = offsetof(Args, sock_path),
         .handler = NULL,
     },
     {
         .name = "trace_pc",
         .type = Boolean,
         .required = false,
-        .default_value = "true",
-        .help = "Enable program counter tracing. Defaults to true.",
+        .default_value = "false",
+        .help = "Enable program counter tracing.",
         .entry = offsetof(Args, trace_pc),
         .handler = NULL,
     },
@@ -47,8 +57,8 @@ static const Arg options[] = {
         .name = "trace_reads",
         .type = Boolean,
         .required = false,
-        .default_value = "true",
-        .help = "Enable memory read tracing. Defaults to true.",
+        .default_value = "false",
+        .help = "Enable memory read tracing.",
         .entry = offsetof(Args, trace_reads),
         .handler = NULL,
     },
@@ -56,8 +66,8 @@ static const Arg options[] = {
         .name = "trace_writes",
         .type = Boolean,
         .required = false,
-        .default_value = "true",
-        .help = "Enable memory write tracing. Defaults to true.",
+        .default_value = "false",
+        .help = "Enable memory write tracing.",
         .entry = offsetof(Args, trace_writes),
         .handler = NULL,
     },
@@ -65,8 +75,8 @@ static const Arg options[] = {
         .name = "trace_syscalls",
         .type = Boolean,
         .required = false,
-        .default_value = "true",
-        .help = "Enable syscall tracing. Defaults to true.",
+        .default_value = "false",
+        .help = "Enable syscall tracing.",
         .entry = offsetof(Args, trace_syscalls),
         .handler = NULL,
     },
@@ -74,9 +84,18 @@ static const Arg options[] = {
         .name = "trace_instrs",
         .type = Boolean,
         .required = false,
-        .default_value = "true",
-        .help = "Enable instruction contents tracing. Defaults to true.",
+        .default_value = "false",
+        .help = "Enable instruction contents tracing.",
         .entry = offsetof(Args, trace_instrs),
+        .handler = NULL,
+    },
+    {
+        .name = "trace_branches",
+        .type = Boolean,
+        .required = false,
+        .default_value = "false",
+        .help = "Enable branch tracing.",
+        .entry = offsetof(Args, trace_branches),
         .handler = NULL,
     },
 #ifndef RELEASE
@@ -139,6 +158,7 @@ static bool debug_args(void) {
     log_debug("    trace_writes:   %d\n", *args->trace_writes);
     log_debug("    trace_syscalls: %d\n", *args->trace_syscalls);
     log_debug("    trace_instrs:   %d\n", *args->trace_instrs);
+    log_debug("    trace_branches: %d\n", *args->trace_branches);
     return HANDLER_EXIT;
 }
 #endif
@@ -214,22 +234,53 @@ static bool *parse_bool(const char *val) {
     return NULL;
 }
 
-static void free_args(void *obj) {
-    Args *to_free = (Args *)obj;
-
-    if (!to_free) {
+void args_free(void) {
+    if (!args) {
         return;
     }
 
-    if (to_free->log_file) {
-        free(to_free->log_file);
+    if (args->log_file) {
+        free(args->log_file);
+        args->log_file = NULL;
     }
 
-    if (to_free->trace_pc) {
-        free(to_free->trace_pc);
+    if (args->sock_path) {
+        free(args->sock_path);
+        args->sock_path = NULL;
     }
 
-    free(to_free);
+    if (args->trace_pc) {
+        free(args->trace_pc);
+        args->trace_pc = NULL;
+    }
+
+    if (args->trace_reads) {
+        free(args->trace_reads);
+        args->trace_reads = NULL;
+    }
+
+    if (args->trace_writes) {
+        free(args->trace_writes);
+        args->trace_writes = NULL;
+    }
+
+    if (args->trace_syscalls) {
+        free(args->trace_syscalls);
+        args->trace_syscalls = NULL;
+    }
+
+    if (args->trace_instrs) {
+        free(args->trace_instrs);
+        args->trace_instrs = NULL;
+    }
+
+    if (args->trace_branches) {
+        free(args->trace_branches);
+        args->trace_branches = NULL;
+    }
+
+    free(args);
+    args = NULL;
 }
 
 ErrorCode args_parse(int argc, char **argv) {

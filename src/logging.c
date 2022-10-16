@@ -8,7 +8,7 @@
 #include "error.h"
 #include "logging.h"
 
-const char *log_file_path = NULL;
+static char *log_file_path = NULL;
 static FILE *log_file = NULL;
 static LogLevel log_level = Debug;
 
@@ -29,9 +29,22 @@ static bool is_dir(const char *path) {
     return S_ISDIR(path_stat.st_mode);
 }
 
+void log_free(void) {
+    if (log_file != NULL && log_file != stderr) {
+        fclose(log_file);
+        log_file = NULL;
+    }
+
+    // If we were unsuccessful, free the log file path
+    if (log_file_path != NULL) {
+        free((void *)log_file_path);
+        log_file_path = NULL;
+    }
+}
+
 ErrorCode log_init(const char *path) {
     ErrorCode rv = Success;
-    char *log_file_realpath = NULL;
+    char *log_file_dirpath = NULL;
     char *log_file_dir = NULL;
     size_t max_pathlen = PATH_MAX;
 
@@ -54,25 +67,35 @@ ErrorCode log_init(const char *path) {
         goto cleanup;
     }
 
-    if ((log_file_realpath = realpath(path, log_file_realpath)) == NULL) {
-        log_error("Log file path is invalid: %s\n", strerror(errno));
-        rv = InvalidLogFilePath;
-        goto cleanup;
-    }
+    // TODO: Ideally, we would check if the directory exists, but realpath checks if the
+    // *file* exists so we can't use it to canonicalize. That's fine, but it is a little
+    // less than perfect
 
-    if ((log_file_path = strdup(log_file_realpath)) == NULL) {
+    // if ((log_file_realpath = realpath(path, log_file_realpath)) ==
+    // NULL) {
+    //     log_error("Log file path is invalid: %s\n", strerror(errno));
+    //     rv = InvalidLogFilePath;
+    //     goto cleanup;
+    // }
+    if ((log_file_path = strdup(path)) == NULL) {
         log_error("Failed to copy log file path: %s\n", strerror(errno));
         rv = OutOfMemory;
         goto cleanup;
     }
 
-    if (is_dir(log_file_realpath)) {
+    if (is_dir(log_file_path)) {
         log_error("Log file path must not be a directory\n");
         rv = InvalidLogFilePath;
         goto cleanup;
     }
 
-    log_file_dir = dirname(log_file_realpath);
+    if ((log_file_dirpath = strdup(log_file_path)) == NULL) {
+        log_error("Failed to copy log file path: %s\n", strerror(errno));
+        rv = OutOfMemory;
+        goto cleanup;
+    }
+
+    log_file_dir = dirname(log_file_dirpath);
 
     if (!is_dir(log_file_dir)) {
         log_error("Log file directory does not exist: %s\n", log_file_dir);
@@ -80,7 +103,7 @@ ErrorCode log_init(const char *path) {
         goto cleanup;
     }
 
-    if ((log_file = fopen(log_file_realpath, "w")) == NULL) {
+    if ((log_file = fopen(log_file_path, "w")) == NULL) {
         log_error("Failed to open log file: %s\n", strerror(errno));
         rv = LogFileOpenFailed;
         goto cleanup;
@@ -88,22 +111,16 @@ ErrorCode log_init(const char *path) {
 
 cleanup:
     // log_file_realpath is malloc()ed by realpath(), we
-    if (log_file_realpath) {
-        free(log_file_realpath);
-    }
-
     // If we were unsuccessful, close the log file
-    if (rv != Success && log_file != NULL && log_file != stderr) {
-        fclose(log_file);
-    }
-
-    // If we were unsuccessful, free the log file path
-    if (rv != Success && log_file_path != NULL) {
-        free((void *)log_file_path);
+    if (log_file_dirpath != NULL) {
+        free((void *)log_file_dirpath);
+        log_file_dirpath = NULL;
     }
 
     if (rv == Success) {
         log_info("Logging configured.\n");
+    } else {
+        log_free();
     }
 
     return rv;
@@ -113,6 +130,7 @@ void log_set_level(LogLevel level) { log_level = level; }
 
 void log_message(LogLevel level, const char *format, va_list args) {
     FILE *outs = log_file;
+
     if (level > log_level) {
         return;
     }

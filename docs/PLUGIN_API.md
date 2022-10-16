@@ -41,6 +41,7 @@ it isn't because your code is wrong if it isn't working for you either.
 * `void (*qemu_plugin_vcpu_udata_cb_t)(unsigned int vcpu_index, void *userdata);`
 * `void (*qemu_plugin_vcpu_mem_cb_t)(unsigned int vcpu_index, qemu_plugin_meminfo_t info, uint64_t vaddr, void *userdata);`
 * `void (*qemu_plugin_vcpu_syscall_cb_t)(qemu_plugin_id_t id, unsigned int vcpu_index, int64_t num, uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4, uint64_t a5, uint64_t a6, uint64_t a7, uint64_t a8); `
+* `void (*qemu_plugin_vcpu_tb_trans_cb_t)(qemu_plugin_id_t id, struct qemu_plugin_tb *tb);`
 * `void (*qemu_plugin_vcpu_syscall_ret_cb_t)(qemu_plugin_id_t id, unsigned int vcpu_idx, int64_t num, int64_t ret);`
 
 ## API
@@ -50,7 +51,6 @@ it isn't because your code is wrong if it isn't working for you either.
 * `QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id, const qemu_info_t *info, int argc, char **argv);`
 * `void qemu_plugin_uninstall(qemu_plugin_id_t id, qemu_plugin_simple_cb_t cb);`
 * `void qemu_plugin_reset(qemu_plugin_id_t id, qemu_plugin_simple_cb_t cb);`
-* `void (*qemu_plugin_vcpu_tb_trans_cb_t)(qemu_plugin_id_t id, struct qemu_plugin_tb *tb);`
 * `size_t qemu_plugin_tb_n_insns(const struct qemu_plugin_tb *tb);`
 * `uint64_t qemu_plugin_tb_vaddr(const struct qemu_plugin_tb *tb);`
 * `struct qemu_plugin_insn * qemu_plugin_tb_get_insn(const struct qemu_plugin_tb *tb, size_t idx);`
