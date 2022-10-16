@@ -1,10 +1,10 @@
-project('fodder', 'c')
+project('cannonball', 'c')
 
 cc = meson.get_compiler('c')
 libglib = dependency('glib-2.0', required: true)
 libgobject = dependency('gobject-2.0', required: true)
 
-subdir('fodder-client')
+subdir('cannonball-client')
 
 qemu_root = get_option('qemu_root')
 qemu_includes = qemu_root / 'include' / 'qemu'
@@ -19,12 +19,13 @@ src_files = [
     'src/logging.c',
 ]
 
-libfodder = shared_module(
-    'fodder',
+libcannonball = shared_module(
+    'cannonball',
     src_files,
-    include_directories: [inc_dir, qemu_inc_dir, fodder_client_inc_dir],
+    c_args: ['-gdwarf-4'],
+    include_directories: [inc_dir, qemu_inc_dir, cannonball_client_inc_dir],
     dependencies: [libglib, libgobject],
-    link_whole: [libfodder_client]
+    link_with: [libcannonball_client]
 )
 
 subdir('test')

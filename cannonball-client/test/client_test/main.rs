@@ -4,10 +4,10 @@ use std::time::Duration;
 use futures::{sink::SinkExt, FutureExt};
 use tokio::{net::UnixStream, select, time::timeout};
 
-use fodder_client::qemu_event::{QemuEventCodec, QemuEventExec};
+use cannonball_client::qemu_event::{QemuEventCodec, QemuEventExec};
 use tokio_util::{codec::Framed, sync::CancellationToken};
 
-const SOCK_NAME: &str = "/dev/shm/fodder.sock";
+const SOCK_NAME: &str = "/dev/shm/cannonball.sock";
 
 async fn go(
     framed: &mut Framed<UnixStream, QemuEventCodec>,

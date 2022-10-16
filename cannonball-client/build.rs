@@ -16,5 +16,5 @@ fn main() {
         .with_config(config)
         .generate()
         .expect("Unable to generate bindings")
-        .write_to_file("ffi/fodder-client.h");
+        .write_to_file("ffi/cannonball-client.h");
 }

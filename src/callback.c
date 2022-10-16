@@ -2,15 +2,19 @@
 #include <string.h>
 
 #include "callback.h"
+#include "cannonball-client.h"
 #include "error.h"
-#include "fodder-client.h"
 #include "logging.h"
+
+#define likely(x) __builtin_expect((x), 1)
+#define unlikely(x) __builtin_expect((x), 0)
 
 // The number of events per batch to send to the consumer
 #define BATCH_SIZE (64)
 
 // Temporaries for tracking events across multiple callbacks
 static QemuEventExec *syscall_evt = NULL;
+static GMutex syscall_evt_lock;
 static GHashTable *exec_htable = NULL;
 static GMutex exec_htable_lock;
 
@@ -101,7 +105,6 @@ static void callback_on_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
     for (size_t i = BRANCHONLY(flags) ? num_insns - 1 : 0; i < num_insns; i++) {
 
         QemuEventExec *event = (QemuEventExec *)calloc(1, sizeof(QemuEventExec));
-
         g_mutex_lock(&exec_htable_lock);
         g_hash_table_insert(exec_htable, event, event);
         g_mutex_unlock(&exec_htable_lock);
@@ -116,6 +119,8 @@ static void callback_on_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
         if (BRANCHES(flags) && i == num_insns - 1) {
             SETBRANCHES(event->flags);
             event->branch.branch = true;
+            // Probably cheaper than conditionals?
+            event->pc.pc = qemu_plugin_insn_vaddr(insn);
         }
 
         if (INSTRS(flags)) {
@@ -140,6 +145,7 @@ static void callback_on_syscall(qemu_plugin_id_t id, unsigned int vcpu_index,
                                 int64_t num, uint64_t a1, uint64_t a2, uint64_t a3,
                                 uint64_t a4, uint64_t a5, uint64_t a6, uint64_t a7,
                                 uint64_t a8) {
+    g_mutex_lock(&syscall_evt_lock);
     /* If we are called, syscall tracing is active*/
     if (syscall_evt == NULL) {
         syscall_evt = (QemuEventExec *)calloc(1, sizeof(QemuEventExec));
@@ -154,16 +160,22 @@ static void callback_on_syscall(qemu_plugin_id_t id, unsigned int vcpu_index,
     syscall_evt->syscall.args[5] = a6;
     syscall_evt->syscall.args[6] = a7;
     syscall_evt->syscall.args[7] = a8;
+    g_mutex_unlock(&syscall_evt_lock);
 }
 
 static void callback_after_syscall(qemu_plugin_id_t id, unsigned int vcpu_idx,
                                    int64_t num, int64_t ret) {
 
     /* If we are called, syscall tracing is active */
+    g_mutex_lock(&syscall_evt_lock);
     if (syscall_evt == NULL) {
         syscall_evt = (QemuEventExec *)calloc(1, sizeof(QemuEventExec));
     } else if (syscall_evt->syscall.num != num) {
         log_error("Syscall number mismatch: %d != %d", syscall_evt->syscall.num, num);
+        free(syscall_evt);
+        syscall_evt = NULL;
+        g_mutex_unlock(&syscall_evt_lock);
+        return;
     }
 
     SETSYSCALLS(syscall_evt->flags);
@@ -173,6 +185,7 @@ static void callback_after_syscall(qemu_plugin_id_t id, unsigned int vcpu_idx,
 
     free(syscall_evt);
     syscall_evt = NULL;
+    g_mutex_unlock(&syscall_evt_lock);
 }
 
 ErrorCode callback_init(qemu_plugin_id_t id, bool trace_pc, bool trace_read,
@@ -188,6 +201,7 @@ ErrorCode callback_init(qemu_plugin_id_t id, bool trace_pc, bool trace_read,
         g_mutex_unlock(&exec_htable_lock);
         return OutOfMemory;
     }
+
     g_mutex_unlock(&exec_htable_lock);
 
     // Sadly, we can't pass the settings into everything.

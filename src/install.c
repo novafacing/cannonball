@@ -1,7 +1,7 @@
-/* fodder plugin qemu interactions
+/* cannonball plugin qemu interactions
  *
  * Code that handles direct interaction with qemu goes in here, and will hand off or
- * receive information from the fodder plugin.
+ * receive information from the cannonball plugin.
  */
 
 #include <stdio.h>

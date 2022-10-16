@@ -1,21 +1,21 @@
 [package]
-name = "fodder_client"
+name = "cannonball_client"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lib]
-name = "fodder_client"
+name = "cannonball_client"
 crate-type = ["staticlib", "lib"]
 
 [[bin]]
 name = "client_test"
-path = "src/client_test/main.rs"
+path = "test/client_test/main.rs"
 
 [[bin]]
 name = "server_test"
-path = "src/server_test/main.rs"
+path = "test/server_test/main.rs"
 
 [build-dependencies]
 cbindgen = "0.24.3"
