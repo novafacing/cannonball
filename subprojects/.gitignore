@@ -1,0 +1,2 @@
+# Qemu will be cloned into the local directory but we don't want to commit it
+qemu/
