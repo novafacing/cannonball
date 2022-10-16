@@ -8,13 +8,14 @@
 #include "error.h"
 #include "logging.h"
 
-// Parsing for command line arguments to the plugin
+/// Parsing for command line arguments to the plugin
 
 static Args *args = NULL;
 
 static bool print_help(void);
 static bool debug_args(void);
 
+/// Command-line configuration options for the plugin
 static const Arg options[] = {
     {
         .name = "help",
@@ -31,8 +32,17 @@ static const Arg options[] = {
         .required = false,
         .default_value = "-", // NOTE: "-" is interpreted as stderr NOT stdout -- only
                               // the binary should print to stdout
-        .help = "Path to log file. If not specified, logs to stderr.",
+        .help = "Path to log file. '-' is interpreted as stderr.",
         .entry = offsetof(Args, log_file),
+        .handler = NULL,
+    },
+    {
+        .name = "log_level",
+        .type = LongLong,
+        .required = false,
+        .default_value = "3",
+        .help = "Log level (0 = Disabled, 1 = Error, 2 = Warning, 3 = Info, 4 = Debug)",
+        .entry = offsetof(Args, log_level),
         .handler = NULL,
     },
     {
@@ -111,10 +121,12 @@ static const Arg options[] = {
 #endif
 };
 
+/// Print out the help message and signal an exit (if you need help, you probably don't
+/// want to run, I figure)
 static bool print_help(void) {
     for (size_t i = 0; i < sizeof(options) / sizeof(Arg); i++) {
         const Arg *arg = &options[i];
-        printf("%12s=", arg->name);
+        printf("%16s=", arg->name);
         switch (arg->type) {
             case Boolean:
                 printf("<boolean>");
@@ -129,30 +141,25 @@ static bool print_help(void) {
                 printf("<unknown>");
                 break;
         }
-        if (arg->default_value != NULL) {
-            switch (arg->type) {
-                case Boolean:
-                    printf(" (default: %5s)", arg->default_value);
-                    break;
-                case String:
-                    printf(" (default: %5s)", arg->default_value);
-                    break;
-                case LongLong:
-                    printf(" (default: %5s)", arg->default_value);
-                    break;
-                default:
-                    break;
-            }
-        }
         printf(" %s\n", arg->help);
+        if (arg->default_value != NULL) {
+            printf("                           "
+                   "(default: %s)\n",
+                   arg->default_value);
+        }
+        printf("\n");
     }
     return HANDLER_EXIT;
 }
 
 #ifndef RELEASE
+/// Print out the arguments and signal an exit. This is just for development purposes
+/// and debugging
 static bool debug_args(void) {
     log_debug("debug args:\n");
     log_debug("    log_file:       %s\n", args->log_file);
+    log_debug("    log_level:      %lld", *args->log_level);
+    log_debug("    sock_path:      %s\n", args->sock_path);
     log_debug("    trace_pc:       %d\n", *args->trace_pc);
     log_debug("    trace_reads:    %d\n", *args->trace_reads);
     log_debug("    trace_writes:   %d\n", *args->trace_writes);
@@ -163,6 +170,7 @@ static bool debug_args(void) {
 }
 #endif
 
+/// Free up the resources for a split argument (ex 'arg1=val1')
 static void free_arg(char **arg) {
     if (arg != NULL) {
         if (arg[0] != NULL) {
@@ -175,6 +183,7 @@ static void free_arg(char **arg) {
     }
 }
 
+/// Split an argument into a key and value (ex 'arg1=val1' -> ['arg1', 'val1'])
 static char **split_arg(char *arg) {
     char **split = NULL;
     char *token = NULL;
@@ -210,6 +219,7 @@ err:
     return NULL;
 }
 
+/// Parse a boolean argument from a string (ex 'true', 'yes', '1', 'on' -> true)
 static bool *parse_bool(const char *val) {
     const char *true_vals[] = {"true", "yes", "1", "on"};
     const char *false_vals[] = {"false", "no", "0", "off"};
@@ -234,6 +244,7 @@ static bool *parse_bool(const char *val) {
     return NULL;
 }
 
+/// Free up the resources for the global args struct
 void args_free(void) {
     if (!args) {
         return;
@@ -242,6 +253,11 @@ void args_free(void) {
     if (args->log_file) {
         free(args->log_file);
         args->log_file = NULL;
+    }
+
+    if (args->log_level) {
+        free(args->log_level);
+        args->log_level = NULL;
     }
 
     if (args->sock_path) {
@@ -283,24 +299,25 @@ void args_free(void) {
     args = NULL;
 }
 
+/// Parse the command line arguments from argc and argv
 ErrorCode args_parse(int argc, char **argv) {
-    // Full argument value
+    /// Full argument value
     char *fullarg = NULL;
-    // The argument name part of the full argument value
+    /// The argument name part of the full argument value
     const char *arg = NULL;
-    // The argument value part of the full argument value
+    /// The argument value part of the full argument value
     const char *val = NULL;
-    // Tokens from a split argument of the form: arg1=val1
+    /// Tokens from a split argument of the form: arg1=val1
     char **tokens = NULL;
-    // The pointer to a new int arg value
+    /// The pointer to a new int arg value
     long long int *intarg = NULL;
-    // The pointer to a new bool arg value
+    /// The pointer to a new bool arg value
     bool *boolarg = NULL;
-    // The pointer to a new string arg value
+    /// The pointer to a new string arg value
     char *strarg = NULL;
-    // The current option being checked
+    /// The current option being checked
     const Arg *option = NULL;
-    // Whether the current option was seen
+    /// Whether the current option was seen
     bool opt_seen = false;
 
     args = (Args *)calloc(1, sizeof(Args));
@@ -310,6 +327,9 @@ ErrorCode args_parse(int argc, char **argv) {
         return OutOfMemory;
     }
 
+    // TODO: This is a little inefficient, ostensibly we would iterate the outer loop
+    // over the args so we don't need to alloc and free as many times, but it really
+    // isn't a big deal since this only happens once
     for (size_t j = 0; j < sizeof(options) / sizeof(Arg); j++) {
         option = &options[j];
         opt_seen = false;
@@ -336,6 +356,7 @@ ErrorCode args_parse(int argc, char **argv) {
                     continue;
                 }
 
+                // TODO: make this switch a function, it's duplicated below
                 switch (option->type) {
                     case Boolean:
                         boolarg = parse_bool(val);
@@ -394,6 +415,7 @@ ErrorCode args_parse(int argc, char **argv) {
             return ArgumentError;
         }
 
+        // Set default values for options that weren't seen
         if (!opt_seen && !option->required && option->default_value &&
             option->entry != -1) {
             val = option->default_value;

@@ -1,35 +1,36 @@
 #ifndef ERROR_H
 #define ERROR_H
 
-// Definitions for errors that may occur during the plugin runtime
-// These error codes are defined in no particular order except that they are added as
-// needed during development.
+/// Definitions for errors that may occur during the plugin runtime
+/// These error codes are defined in no particular order except that they are added as
+/// needed during development.
 typedef enum ErrorCode {
-    // General success code
+    /// General success code
     Success = 0,
-    // General failure code -- used when no other error code is appropriate
+    /// General failure code -- used when no other error code is appropriate
     Failure = 1,
-    // Error code for when the plugin is loaded in system emulation mode (which is not
-    // yet supported)
+    /// Error code for when the plugin is loaded in system emulation mode (which is not
+    /// yet supported)
     SystemEmulationUnsupported = 2,
-    // The directory the log file is specified to output to does not exist (error
-    // because
-    // we do not create the directory if it does not exist)
+    /// The directory the log file is specified to output to does not exist (error
+    /// because
+    /// we do not create the directory if it does not exist)
     MissingLogDirectory = 3,
-    // The log file path is otherwise invalid (e.g. the path is a directory, the path is
-    // empty, etc.)
+    /// The log file path is otherwise invalid (e.g. the path is a directory, the path
+    /// is
+    /// empty, etc.)
     InvalidLogFilePath = 4,
-    // The log file could not be opened for writing
+    /// The log file could not be opened for writing
     LogFileOpenFailed = 5,
-    // Out of memory
+    /// Out of memory
     OutOfMemory = 6,
-    // General argument parsing error, also returned when the `help` argument is used
+    /// General argument parsing error, also returned when the `help` argument is used
     ArgumentError = 7,
-    // An argument handler signaled for exit
+    /// An argument handler signaled for exit
     ArgumentHandlerExit = 8,
-    // The instrumentation settings were invalid or some error occurred setting them
+    /// The instrumentation settings were invalid or some error occurred setting them
     InstrumentationSettingsError = 9,
-    // The Sender struct could not be initialized or some other setup error
+    /// The Sender struct could not be initialized or some other setup error
     SenderInitError = 10,
 } ErrorCode;
 

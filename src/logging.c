@@ -10,7 +10,7 @@
 
 static char *log_file_path = NULL;
 static FILE *log_file = NULL;
-static LogLevel log_level = Debug;
+static LogLevel log_level = Info;
 
 static const char *level_strings[] = {
     [Error] = "ERROR",
@@ -42,7 +42,7 @@ void log_free(void) {
     }
 }
 
-ErrorCode log_init(const char *path) {
+ErrorCode log_init(const char *path, LogLevel level) {
     ErrorCode rv = Success;
     char *log_file_dirpath = NULL;
     char *log_file_dir = NULL;
@@ -122,6 +122,8 @@ cleanup:
     } else {
         log_free();
     }
+
+    log_set_level(level);
 
     return rv;
 }

@@ -25,7 +25,7 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id, const qemu_info_
 
     const Args *args = args_get();
 
-    if ((rv = log_init(args->log_file)) != Success) {
+    if ((rv = log_init(args->log_file, (LogLevel)*args->log_level)) != Success) {
         goto cleanup;
     }
 
