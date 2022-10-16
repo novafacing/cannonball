@@ -1,4 +1,5 @@
 CompileFlags:
     Add:
-        - "--include-path=qemu/include/qemu/"
+        # This won't work until configuring is done, so do that first
+        - "--include-path=subprojects/qemu/qemu/include/qemu"
     CompilationDatabase: builddir
