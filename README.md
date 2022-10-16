@@ -44,7 +44,17 @@ When run, the plugin will wait before execution for the socket passed in `sock_p
 be opened for listening. Your program should open that unix socket and listen on it for
 events. An example listener is provided in
 [cannonball-client/test/server_test](cannonball-client/test/server_test/main.rs). The
-top item on the roadmap is to make this process a little easier.
+top item on the roadmap is to make this process a little easier, but for now you can
+compile and run the server test with:
+
+```sh
+cd cannonball-client
+cargo build --release
+./target/release/server_test
+```
+
+Making the above easier will also make this process less error-prone, but you should
+start qemu *before* starting the server_test binary, otherwise both will hang.
 
 ## Peeeeerffffff
 
