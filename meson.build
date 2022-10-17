@@ -11,9 +11,11 @@ qemu_root = get_option('qemu_root')
 if qemu_root == ''
     qemu_subproj = subproject('qemu')
     qemu_inc_dir = qemu_subproj.get_variable('qemu_inc_dir')
+    qemu_bins = qemu_subproj.get_variable('target_qemu_bins')
 else
     qemu_includes = qemu_root / 'include' / 'qemu'
     qemu_inc_dir = include_directories(qemu_includes)
+    qemu_bins = []
 endif
 
 inc_dir = include_directories('include')
@@ -33,4 +35,4 @@ libcannonball = shared_module(
     link_with: [libcannonball_client]
 )
 
-subdir('test')
+subdir('cannonball-tools')

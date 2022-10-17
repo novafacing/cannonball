@@ -7,7 +7,16 @@
 set -e
 
 BUILDDIR="${1}"
-LIBNAME="${2}"
+BUILDROOT="${2}"
+QEMU_BINS=("${@:3}")
+QEMU_BINS_FULLPATHS=("${QEMU_BINS[@]/#/${BUILDROOT}/}")
+
+echo "BUILDDIR: ${BUILDDIR}"
+echo "BUILDROOT: ${BUILDROOT}"
+echo "QEMU_BINS: ${QEMU_BINS_FULLPATHS[@]}"
+
+exit 1
+
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 if [ -z "${BUILDDIR}" -o -z "${LIBNAME}" ]; then
@@ -24,4 +33,4 @@ fi
 cargo build --release --lib --target-dir "${BUILDDIR}" \
     --manifest-path "${SCRIPT_DIR}/Cargo.toml"
 
-cp "${BUILDDIR}/release/${LIBNAME}" "${BUILDDIR}/${LIBNAME}"
+cp "${BUILDDIR}/release/*" "${BUILDDIR}/"
