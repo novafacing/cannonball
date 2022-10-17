@@ -1,2 +1,0 @@
-# Gitignore the header because it is generated at build time
-cannonball-client.h
