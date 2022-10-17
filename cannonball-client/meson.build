@@ -1,5 +1,3 @@
-cannonball_client_inc_dir = include_directories('ffi')
-
 libcannonball_client = custom_target(
     'libcannonball_client.a',
     output: 'libcannonball_client.a',
@@ -10,3 +8,5 @@ libcannonball_client = custom_target(
         'libcannonball_client.a'
     ]
 )
+
+cannonball_client_inc_dir = include_directories('target' / 'ffi')
