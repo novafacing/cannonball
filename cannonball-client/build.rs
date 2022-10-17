@@ -1,6 +1,6 @@
 extern crate cbindgen;
 
-use std::{env::var, fs::create_dir, path::PathBuf};
+use std::{env::var, fs::create_dir_all, path::PathBuf};
 
 fn target_dir() -> PathBuf {
     if let Ok(target) = var("CARGO_TARGET_DIR") {
@@ -17,7 +17,13 @@ fn main() {
 
     // create the ffi directory if it doesn't exist
     if !ffi_outdir.exists() {
-        create_dir(&ffi_outdir).unwrap();
+        create_dir_all(&ffi_outdir).expect(
+            format!(
+                "Unable to create directory: {}",
+                ffi_outdir.as_os_str().to_string_lossy()
+            )
+            .as_str(),
+        );
     }
 
     let config = cbindgen::Config {
