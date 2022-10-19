@@ -19,7 +19,8 @@ running `apt-get build-dep qemu`.
 
 ### Compiling
 
-The build system for the plugin is complete and it can be compiled with:
+The build system is a bit of a work in progress, but this will build the client library,
+the plugin, the example tools and tests, and qemu x86_64.
 
 ```sh
 meson -Dtarget_list=x86_64 builddir
