@@ -2,10 +2,14 @@
 
 use clap::Parser;
 use futures::stream::StreamExt;
-use log::LevelFilter;
-use memfd_exec::Executable;
+use log::{error, LevelFilter};
+// use memfd_exec::Executable;
 use simple_logger::SimpleLogger;
-use std::{fs::Path, process::exit, time::Duration};
+use std::{
+    path::{Path, PathBuf},
+    process::exit,
+    time::Duration,
+};
 use tokio::{
     net::{unix::SocketAddr, UnixListener, UnixStream},
     process::Command,
@@ -30,7 +34,7 @@ struct Args {
     #[clap()]
     program: PathBuf,
     // The arguments to the program
-    #[clap(multiple_values = true, last = true)]
+    #[clap(num_args = 1.., last = true)]
     args: Vec<String>,
 }
 
@@ -48,7 +52,7 @@ async fn handle(_addr: SocketAddr, stream: UnixStream) {
 }
 
 #[tokio::main]
-fn main() {
+async fn main() {
     let args = Args::parse();
     SimpleLogger::new()
         .with_level(args.log_level)
@@ -84,9 +88,9 @@ fn main() {
         .wait().await.expect("QEMU failed to run");
     });
 
-    sleep(Duration::from_secs(1));
+    sleep(Duration::from_secs(1)).await;
 
-    let listener = match UnixListener::bind(sockname) {
+    let listener = match UnixListener::bind(sockname.clone()) {
         Ok(l) => l,
         Err(e) => {
             error!("Error binding socket: {}", e);
