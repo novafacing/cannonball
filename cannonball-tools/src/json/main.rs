@@ -19,30 +19,48 @@ use tokio::{
 };
 use tokio_util::codec::Framed;
 
-use cannonball_client::qemu_event::{EventFlags, QemuEventCodec};
+use cannonball_client::qemu_event::{EventFlags, QemuEventCodec, QemuEventExec};
 
 #[derive(Parser, Debug)]
 struct Args {
-    // A path to a qemu executable. If not provided and the tool was compiled with
-    // qemu built-in, the built-in qemu will be used. If not provided and the tool
-    // was not compiled with qemu built-in, the tool will yell at you :)
+    /// A path to a qemu executable. If not provided and the tool was compiled with
+    /// qemu built-in, the built-in qemu will be used. If not provided and the tool
+    /// was not compiled with qemu built-in, the tool will yell at you :)
     #[clap(short, long)]
     qemu: Option<String>,
-    // A path to the plugin
+    /// A path to the plugin
     #[clap(short, long)]
     plugin: String,
     /// Log level
     #[clap(short = 'L', long, default_value = "error")]
     log_level: LevelFilter,
-    // The program to run
+    /// Whether to log branches
+    #[clap(short, long)]
+    branches: bool,
+    /// Whether to log syscalls
+    #[clap(short, long)]
+    syscalls: bool,
+    /// Whether to log the pc
+    #[clap(short, long)]
+    pc: bool,
+    /// Whether to log reads
+    #[clap(short, long)]
+    reads: bool,
+    /// Whether to log writes
+    #[clap(short, long)]
+    writes: bool,
+    /// Whether to log instrs
+    #[clap(short, long)]
+    instrs: bool,
+    /// The program to run
     #[clap()]
     program: PathBuf,
-    // The arguments to the program
+    /// The arguments to the program
     #[clap(num_args = 1.., last = true)]
     args: Vec<String>,
 }
 
-async fn handle(stream: StdUnixStream) {
+async fn handle(stream: StdUnixStream, syscalls: bool) {
     stream.set_nonblocking(true).unwrap();
     let estream = UnixStream::from_std(stream).unwrap();
     let mut framed = Framed::new(estream, QemuEventCodec {});
@@ -50,8 +68,9 @@ async fn handle(stream: StdUnixStream) {
     let mut ctr = 0;
     loop {
         if let Some(Ok(event)) = framed.next().await {
-            ctr += 1;
-            println!("{}", serde_json::to_string(&event).unwrap());
+            // println!("{}", serde_json::to_string(&event).unwrap());
+            println!("Received {} events", ctr);
+            println!("Received event: {:?}", event);
         }
     }
 }
@@ -91,7 +110,19 @@ async fn main() {
             }
         }))
         .arg("-plugin")
-        .arg(format!("{},trace_branches=true,trace_syscalls=true,trace_pc=true,trace_reads=true,trace_writes=true,trace_instrs=true,sock_path={}", args.plugin, sname))
+        .arg(
+            format!(
+            "{},trace_branches={},trace_syscalls={},trace_pc={},trace_reads={},trace_writes={},trace_instrs={},sock_path={}",
+            args.plugin,
+            if args.branches { "on" } else { "off" },
+            if args.syscalls { "on" } else { "off" },
+            if args.pc { "on" } else { "off" },
+            if args.reads { "on" } else { "off" },
+            if args.writes { "on" } else { "off" },
+            if args.instrs { "on" } else { "off" },
+            sname
+            )
+        )
         .arg("--")
         .arg(args.program)
         .args(args.args)
@@ -114,7 +145,7 @@ async fn main() {
         match stream {
             Ok(stream) => {
                 eprintln!("Got connection from {:?}", stream.peer_addr());
-                tokio::spawn(handle(stream));
+                tokio::spawn(handle(stream, args.syscalls));
             }
             Err(e) => {
                 eprintln!("Error: {}", e);
