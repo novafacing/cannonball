@@ -4,8 +4,10 @@ use clap::Parser;
 use futures::stream::StreamExt;
 use log::{error, LevelFilter};
 // use memfd_exec::Executable;
+use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use simple_logger::SimpleLogger;
 use std::{
+    os::unix::net::{UnixListener as StdUnixListener, UnixStream as StdUnixStream},
     path::{Path, PathBuf},
     process::exit,
     time::Duration,
@@ -16,7 +18,6 @@ use tokio::{
     time::sleep,
 };
 use tokio_util::codec::Framed;
-use uuid::Uuid;
 
 use cannonball_client::qemu_event::{EventFlags, QemuEventCodec};
 
@@ -27,6 +28,9 @@ struct Args {
     // was not compiled with qemu built-in, the tool will yell at you :)
     #[clap(short, long)]
     qemu: Option<String>,
+    // A path to the plugin
+    #[clap(short, long)]
+    plugin: String,
     /// Log level
     #[clap(short = 'L', long, default_value = "error")]
     log_level: LevelFilter,
@@ -38,15 +42,16 @@ struct Args {
     args: Vec<String>,
 }
 
-async fn handle(_addr: SocketAddr, stream: UnixStream) {
-    let mut framed = Framed::new(stream, QemuEventCodec {});
+async fn handle(stream: StdUnixStream) {
+    stream.set_nonblocking(true).unwrap();
+    let estream = UnixStream::from_std(stream).unwrap();
+    let mut framed = Framed::new(estream, QemuEventCodec {});
 
     let mut ctr = 0;
     loop {
         if let Some(Ok(event)) = framed.next().await {
             ctr += 1;
-            println!("Received {} events", ctr);
-            println!("Received event: {:?}", event);
+            println!("{}", serde_json::to_string(&event).unwrap());
         }
     }
 }
@@ -59,9 +64,13 @@ async fn main() {
         .init()
         .unwrap();
 
-    let sockid = Uuid::new_v4().to_string();
+    let sockid: String = thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(8)
+        .map(char::from)
+        .collect();
     // Sock can be in /tmp, not any slower than /dev/shm
-    let sockname = format!("/tmp/{}", sockid);
+    let sockname = format!("/dev/shm/{}.sock", sockid);
     let sockpath = Path::new(&sockname);
 
     if sockpath.exists() {
@@ -69,8 +78,10 @@ async fn main() {
         return;
     }
 
-    tokio::spawn(async move {
-        Command::new(args.qemu.unwrap_or_else(|| {
+    tokio::spawn({
+        let sname = sockname.clone();
+        async move {
+            Command::new(args.qemu.unwrap_or_else(|| {
             if cfg!(feature = "monolithic") {
                 // TODO: This isn't working yet though!
                 "qemu".to_string()
@@ -80,33 +91,34 @@ async fn main() {
             }
         }))
         .arg("-plugin")
-        .arg("../builddir/libcannonball.so,trace_branches=true,trace_syscalls=true,trace_pc=true,trace_reads=true,trace_writes=true,trace_instrs=true")
+        .arg(format!("{},trace_branches=true,trace_syscalls=true,trace_pc=true,trace_reads=true,trace_writes=true,trace_instrs=true,sock_path={}", args.plugin, sname))
         .arg("--")
         .arg(args.program)
         .args(args.args)
         .spawn().expect("QEMU failed to start")
         .wait().await.expect("QEMU failed to run");
+        }
     });
 
-    sleep(Duration::from_secs(1)).await;
-
-    let listener = match UnixListener::bind(sockname.clone()) {
+    let listener = match StdUnixListener::bind(sockname.clone()) {
         Ok(l) => l,
         Err(e) => {
             error!("Error binding socket: {}", e);
-            UnixListener::bind(sockname).unwrap()
+            StdUnixListener::bind(sockname).unwrap()
         }
     };
 
-    loop {
-        match listener.accept().await {
-            Ok((stream, addr)) => {
-                tokio::spawn(async move {
-                    handle(addr, stream).await;
-                });
+    eprintln!("Waiting for connection on {:?}", listener.local_addr());
+
+    for stream in listener.incoming() {
+        match stream {
+            Ok(stream) => {
+                eprintln!("Got connection from {:?}", stream.peer_addr());
+                tokio::spawn(handle(stream));
             }
             Err(e) => {
-                error!("Error accepting connection: {}", e);
+                eprintln!("Error: {}", e);
+                break;
             }
         }
     }

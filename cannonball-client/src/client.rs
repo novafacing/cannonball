@@ -75,10 +75,11 @@ pub extern "C" fn setup(batch_size: usize, socket: *const c_char) -> *mut Sender
     let c_str = unsafe { CStr::from_ptr(socket) };
     let c_string = c_str.to_str().unwrap();
 
-    if Path::new(c_string).exists() {
-        // Delete the socket if it already exists
-        remove_file(c_string).unwrap();
-    }
+    // This breaks new mode of operation!
+    // if Path::new(c_string).exists() {
+    //     // Delete the socket if it already exists
+    //     remove_file(c_string).unwrap();
+    // }
 
     // TODO: Don't let the runtime go out of scope (which cancels the receive, which breaks the channel) but also...lets not do this.
     let runtime = ManuallyDrop::new(Builder::new_multi_thread().enable_all().build().unwrap());

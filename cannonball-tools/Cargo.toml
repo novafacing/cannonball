@@ -39,14 +39,14 @@ serde_json = "1.0.86"
 log = "0.4.17"
 simple_logger = "2.3.0"
 
+rand = "0.8.5"
+
 # For executing qemu from memory if big binary is enabled
+
 # memfd-exec = "0.1.3"
 
 # For object file parsing to determine the architecture of the binary
 object = "0.29.0"
-
-# For generating random uuids for various temporary file names
-uuid = { version = "1.2.1", features = ["v4"] }
 
 # For streaming disassembly
 yaxpeax-x86 = { version = "1.1.4", default-features = true }

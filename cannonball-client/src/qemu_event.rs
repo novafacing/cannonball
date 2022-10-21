@@ -1,6 +1,7 @@
 use bitflags::bitflags;
 use bytes::{Buf, BufMut, BytesMut};
 use rand::{thread_rng, Rng};
+use serde::Serialize;
 use std::mem::size_of;
 use tokio_util::codec::{Decoder, Encoder};
 
@@ -23,7 +24,7 @@ pub trait FromBytes {
 
 bitflags! {
     #[repr(C)]
-    #[derive(Default)]
+    #[derive(Default, Serialize)]
     /// Flags that are used to indicate what event types are enabled or what event types an event
     /// actually contains
     pub struct EventFlags: u32 {
@@ -72,7 +73,7 @@ impl EventFlags {
 }
 
 #[repr(C)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize)]
 /// The Qemu program counter event
 pub struct QemuPc {
     /// The program counter value. If the event has the PC flag, this value will be set to
@@ -110,7 +111,7 @@ impl FromBytes for QemuPc {
 }
 
 #[repr(C)]
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Serialize)]
 /// The Instruction event
 pub struct QemuInstr {
     /// The full instruction opcode bytes
@@ -170,7 +171,7 @@ impl FromBytes for QemuInstr {
 }
 
 #[repr(C)]
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Serialize)]
 /// The read event
 pub struct QemuRead {
     /// The virtual address of the read
@@ -208,7 +209,7 @@ impl FromBytes for QemuRead {
 }
 
 #[repr(C)]
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Serialize)]
 /// The write event
 pub struct QemuWrite {
     /// The virtual address of the write
@@ -246,7 +247,7 @@ impl FromBytes for QemuWrite {
 }
 
 #[repr(C)]
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Serialize)]
 /// The syscall event
 pub struct QemuSyscall {
     /// The syscall number that was executed
@@ -309,7 +310,7 @@ impl FromBytes for QemuSyscall {
 }
 
 #[repr(C)]
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Serialize)]
 /// The branch event
 pub struct QemuBranch {
     /// Whether a branch occurred. The Pc event will also be set to the pc of the branch.
@@ -345,7 +346,7 @@ impl FromBytes for QemuBranch {
 }
 
 #[repr(C)]
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Serialize)]
 /// The event container for an executed event
 pub struct QemuEventExec {
     // This is a C struct, we can't just use Option<> easily so we just flag whether or not
