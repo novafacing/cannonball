@@ -7,7 +7,9 @@ option(
 option(
     'target_list',
     type: 'array',
-    value: [],
+    value: [
+        'x86_64-linux-user',
+    ],
     description: 'The list of targets to build.',
     choices: [
         'aarch64-softmmu',

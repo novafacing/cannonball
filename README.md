@@ -27,7 +27,10 @@ meson -Dtarget_list=x86_64 builddir
 meson compile -C builddir
 ```
 
-The plugin will be output to `builddir/libcannonball.so`.
+The plugin will be output to `builddir/libcannonball.so`, and an example tool that dumps
+received events to json using the client library will be output to `builddir/cannonball-tools`.
+
+
 
 ## Running
 
