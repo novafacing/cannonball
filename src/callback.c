@@ -99,10 +99,11 @@ static QemuEventMsg *newpc(uint64_t pc, bool branch) {
     return evt;
 }
 
-static QemuEventMsg *newinstr(const void *data, uintptr_t opcode_size) {
+static QemuEventMsg *newinstr(uint64_t pc, const void *data, uintptr_t opcode_size) {
     QemuEventMsg *evt = (QemuEventMsg *)calloc(1, sizeof(QemuEventMsg));
     SETINSTRS(evt->flags);
     evt->event.tag = Instr;
+    evt->event.instr.pc = pc;
     evt->event.instr.opcode_size = opcode_size;
     memcpy(evt->event.instr.opcode, data, opcode_size);
     g_mutex_lock(&events_htable_lock);
@@ -240,7 +241,7 @@ static void callback_on_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
 
         if (INSTRS(flags)) {
             QemuEventMsg *instr_msg =
-                newinstr(qemu_plugin_insn_data(insn), qemu_plugin_insn_size(insn));
+                newinstr(pc, qemu_plugin_insn_data(insn), qemu_plugin_insn_size(insn));
             qemu_plugin_register_vcpu_insn_exec_cb(
                 insn, callback_on_insn_exec, QEMU_PLUGIN_CB_NO_REGS, (void *)instr_msg);
         }

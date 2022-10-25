@@ -125,6 +125,7 @@ impl FromBytes for QemuPc {
 #[derive(Copy, Clone, Debug, Serialize)]
 /// The Instruction event
 pub struct QemuInstr {
+    pub pc: u64,
     /// The full instruction opcode bytes
     pub opcode: [u8; MAX_OPCODE_SIZE],
     /// The size of the opcode in bytes - the `opcode` array may be larger
@@ -138,8 +139,9 @@ pub struct QemuInstr {
 
 impl QemuInstr {
     /// Construct a new `QemuInstr` object
-    pub fn new(opcode: [u8; MAX_OPCODE_SIZE], opcode_size: usize) -> Self {
+    pub fn new(pc: u64, opcode: [u8; MAX_OPCODE_SIZE], opcode_size: usize) -> Self {
         Self {
+            pc,
             opcode,
             opcode_size,
         }
@@ -148,12 +150,14 @@ impl QemuInstr {
     /// For performance testing only
     pub fn new_random() -> Self {
         let mut rng = thread_rng();
+        let pc = rng.gen();
         let mut opcode = [0u8; MAX_OPCODE_SIZE];
         for i in 0..MAX_OPCODE_SIZE {
             opcode[i] = rng.gen();
         }
 
         Self {
+            pc,
             opcode,
             opcode_size: rng.gen_range(1..MAX_OPCODE_SIZE),
         }
@@ -163,6 +167,7 @@ impl QemuInstr {
 impl ToBytes for QemuInstr {
     /// Serialize the `QemuInstr` object to bytes
     fn to_bytes(&self, bytes: &mut BytesMut) {
+        bytes.put_u64(self.pc);
         bytes.put_slice(&self.opcode[..]);
         bytes.put_u64(self.opcode_size as u64);
     }
@@ -171,10 +176,12 @@ impl ToBytes for QemuInstr {
 impl FromBytes for QemuInstr {
     /// Deserialize the `QemuInstr` object from bytes
     fn from_bytes(bytes: &mut BytesMut) -> Self {
+        let pc = bytes.get_u64();
         let mut opcode = [0u8; MAX_OPCODE_SIZE];
         bytes.copy_to_slice(&mut opcode[..]);
         let opcode_size = bytes.get_u64() as usize;
         QemuInstr {
+            pc,
             opcode,
             opcode_size,
         }

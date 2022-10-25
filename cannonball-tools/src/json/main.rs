@@ -68,15 +68,8 @@ async fn handle(stream: StdUnixStream, syscalls: bool) {
     let mut ctr = 0;
     loop {
         if let Some(Ok(event)) = framed.next().await {
-            // println!("{}", serde_json::to_string(&event).unwrap());
-            println!("Received {} events", ctr);
-            println!("Received event: {:?}", event);
+            println!("{}", serde_json::to_string(&event).unwrap());
             ctr += 1;
-
-            if event.flags.contains(EventFlags::FINISHED) {
-                println!("Received finished event");
-                break;
-            }
         }
     }
 }
