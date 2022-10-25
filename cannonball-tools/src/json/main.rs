@@ -19,7 +19,7 @@ use tokio::{
 };
 use tokio_util::codec::Framed;
 
-use cannonball_client::qemu_event::{EventFlags, QemuEventCodec, QemuEventExec};
+use cannonball_client::qemu_event::{EventFlags, QemuMsgCodec};
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -63,7 +63,7 @@ struct Args {
 async fn handle(stream: StdUnixStream, syscalls: bool) {
     stream.set_nonblocking(true).unwrap();
     let estream = UnixStream::from_std(stream).unwrap();
-    let mut framed = Framed::new(estream, QemuEventCodec {});
+    let mut framed = Framed::new(estream, QemuMsgCodec {});
 
     let mut ctr = 0;
     loop {

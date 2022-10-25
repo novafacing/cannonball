@@ -28,7 +28,7 @@ bytes = "1.2.1"
 clap = { version = "4.0.17", features = ["derive"] }
 
 # The cannonball client library
-cannonball_client = "0.1.5"
+cannonball_client = "0.1.6"
 
 # For json support and serializing events to it
 serde = "1.0.145"
