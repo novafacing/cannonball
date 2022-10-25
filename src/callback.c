@@ -5,6 +5,7 @@
 #include "cannonball-client.h"
 #include "error.h"
 #include "logging.h"
+#include "qemu-plugin.h"
 
 #define likely(x) __builtin_expect((x), 1)
 #define unlikely(x) __builtin_expect((x), 0)
@@ -218,24 +219,14 @@ static void callback_after_syscall(qemu_plugin_id_t id, unsigned int vcpu_idx,
     g_mutex_unlock(&syscall_evt_lock);
 }
 
-static void callback_on_vcpu_exit(qemu_plugin_id_t id, unsigned int vcpu_idx) {
-    g_mutex_lock(&syscall_evt_lock);
-    g_mutex_lock(&exec_htable_lock);
+static void callback_atexit(long unsigned int vcpu_idx, void *_) {
+    log_info("VCPU %d exited, sending exit event.\n", vcpu_idx);
 
     // Send an event signaling the end of the trace
     QemuEventExec *end_evt = (QemuEventExec *)calloc(1, sizeof(QemuEventExec));
     SETFINISHED(end_evt->flags);
     submit(sender, end_evt);
-
-    g_hash_table_remove_all(exec_htable);
-
-    if (syscall_evt != NULL) {
-        free(syscall_evt);
-        syscall_evt = NULL;
-    }
-
-    g_mutex_unlock(&exec_htable_lock);
-    g_mutex_unlock(&syscall_evt_lock);
+    teardown(sender);
 }
 
 /// Initialize the plugin's callbacks and set up the pipe to the consumer
@@ -255,9 +246,9 @@ ErrorCode callback_init(qemu_plugin_id_t id, bool trace_pc, bool trace_read,
 
     g_mutex_unlock(&exec_htable_lock);
 
-    // Sadly, we can't pass the settings into everything.
-    // Precompute whether we only need to instrument the last insn of a block
     if ((sender = setup(BATCH_SIZE, socket_path)) == NULL) {
+        log_error("Failed to setup sender.\n");
+
         return SenderInitError;
     }
 
@@ -274,7 +265,8 @@ ErrorCode callback_init(qemu_plugin_id_t id, bool trace_pc, bool trace_read,
         log_info("Registered syscall callbacks.\n");
     }
 
-    qemu_plugin_register_vcpu_exit_cb(id, callback_on_vcpu_exit);
+    log_info("Registering callback for vcpu exit\n");
+    qemu_plugin_register_atexit_cb(id, callback_atexit, NULL);
 
     log_info("Initialized plugin callbacks.\n");
 

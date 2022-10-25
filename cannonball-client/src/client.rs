@@ -19,27 +19,39 @@ use tokio_util::codec::Framed;
 
 use crate::qemu_event::{QemuEventCodec, QemuEventExec};
 
+pub enum ClientEvent {
+    Event(QemuEventExec),
+    Shutdown,
+}
+
 /// Run the client's listener thread on the Tokio event loop. This will receive events off of
 /// the receive end of the channel and send them to the UNIX socket. It will batch events for
 /// efficiency.
 pub fn run(
     runtime: ManuallyDrop<Runtime>,
     mut stream: Framed<UnixStream, QemuEventCodec>,
-    mut receiver: UnboundedReceiver<QemuEventExec>,
+    mut receiver: UnboundedReceiver<ClientEvent>,
     batch_size: usize,
 ) {
     runtime.spawn(async move {
         let mut ctr = 0;
         loop {
             let r = receiver.recv().await.unwrap();
-            // TODO: handle error
-            stream.feed(r).await.unwrap();
-            ctr += 1;
+            match r {
+                ClientEvent::Event(evt) => {
+                    // TODO: handle error
+                    stream.feed(evt).await.unwrap();
+                    ctr += 1;
 
-            if ctr == batch_size {
-                ctr = 0;
-                // TODO: handle error
-                stream.flush().await.unwrap();
+                    if ctr == batch_size {
+                        ctr = 0;
+                        // TODO: handle error
+                        stream.flush().await.unwrap();
+                    }
+                }
+                ClientEvent::Shutdown => {
+                    stream.flush().await.unwrap();
+                }
             }
         }
     });
@@ -50,13 +62,23 @@ pub fn run(
 /// plugin.
 pub struct Sender {
     /// The sender side of the channel that the client dispatcher thread is pulling events from
-    sender: UnboundedSender<QemuEventExec>,
+    sender: UnboundedSender<ClientEvent>,
 }
 
 impl Sender {
     /// Submit an event to the client dispatcher thread over the send side of the channel
     pub fn send(&self, msg: QemuEventExec) {
-        match self.sender.send(msg) {
+        match self.sender.send(ClientEvent::Event(msg)) {
+            Ok(_) => {}
+            Err(e) => {
+                eprintln!("Error sending message: {}", e);
+                exit(1);
+            }
+        }
+    }
+
+    pub fn shutdown(&self) {
+        match self.sender.send(ClientEvent::Shutdown) {
             Ok(_) => {}
             Err(e) => {
                 eprintln!("Error sending message: {}", e);
@@ -121,9 +143,11 @@ pub extern "C" fn submit(client: *mut Sender, event: *mut QemuEventExec) {
 #[no_mangle]
 /// Destroy the client sender object and stop the Tokio runtime. This function is called by the
 /// QEMU plugin to destroy the client sender object via FFI
-pub extern "C" fn teardown(_client: *mut Sender) {
+pub extern "C" fn teardown(client: *mut Sender) {
     // TODO: This should drop the runtime and the channel on QEMU exit if we want to be
     // nitpicky
+    let sender = unsafe { &mut *client };
+    sender.shutdown();
 }
 
 #[no_mangle]

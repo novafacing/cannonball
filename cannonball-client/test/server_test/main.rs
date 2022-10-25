@@ -2,7 +2,7 @@
 
 use std::{fs::remove_file, path::Path};
 
-use cannonball_client::qemu_event::{QemuEventCodec, EventFlags};
+use cannonball_client::qemu_event::{EventFlags, QemuEventCodec};
 use futures::stream::StreamExt;
 use tokio::net::{unix::SocketAddr, UnixListener, UnixStream};
 use tokio_util::codec::Framed;
@@ -18,6 +18,10 @@ async fn handle(_addr: SocketAddr, stream: UnixStream) {
             ctr += 1;
             println!("Received {} events", ctr);
             println!("Received event: {:?}", event);
+
+            if event.flags.contains(EventFlags::FINISHED) {
+                break;
+            }
         }
     }
 }
