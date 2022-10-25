@@ -2,7 +2,7 @@
 
 use std::{fs::remove_file, path::Path};
 
-use cannonball_client::qemu_event::{EventFlags, QemuEventCodec};
+use cannonball_client::qemu_event::{EventFlags, QemuMsgCodec};
 use futures::stream::StreamExt;
 use tokio::net::{unix::SocketAddr, UnixListener, UnixStream};
 use tokio_util::codec::Framed;
@@ -10,7 +10,7 @@ use tokio_util::codec::Framed;
 const SOCK_NAME: &str = "/dev/shm/cannonball.sock";
 
 async fn handle(_addr: SocketAddr, stream: UnixStream) {
-    let mut framed = Framed::new(stream, QemuEventCodec {});
+    let mut framed = Framed::new(stream, QemuMsgCodec {});
 
     let mut ctr = 0;
     loop {

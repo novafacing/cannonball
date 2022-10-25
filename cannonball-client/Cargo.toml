@@ -11,9 +11,9 @@ readme = "README.md"
 name = "cannonball_client"
 crate-type = ["staticlib", "lib"]
 
-[[bin]]
-name = "client_test"
-path = "test/client_test/main.rs"
+# [[bin]]
+# name = "client_test"
+# path = "test/client_test/main.rs"
 
 [[bin]]
 name = "server_test"

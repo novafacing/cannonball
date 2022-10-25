@@ -5,6 +5,7 @@
 use std::ffi::CStr;
 use std::mem::ManuallyDrop;
 use std::process::exit;
+use std::sync::Mutex;
 use std::thread::sleep;
 use std::time::Duration;
 
@@ -17,10 +18,10 @@ use tokio::{
 };
 use tokio_util::codec::Framed;
 
-use crate::qemu_event::{QemuEventCodec, QemuEventExec};
+use crate::qemu_event::{QemuEventMsg, QemuMsgCodec};
 
 pub enum ClientEvent {
-    Event(QemuEventExec),
+    Event(QemuEventMsg),
     Shutdown,
 }
 
@@ -29,7 +30,7 @@ pub enum ClientEvent {
 /// efficiency.
 pub fn run(
     runtime: ManuallyDrop<Runtime>,
-    mut stream: Framed<UnixStream, QemuEventCodec>,
+    mut stream: Framed<UnixStream, QemuMsgCodec>,
     mut receiver: UnboundedReceiver<ClientEvent>,
     batch_size: usize,
 ) {
@@ -62,13 +63,14 @@ pub fn run(
 /// plugin.
 pub struct Sender {
     /// The sender side of the channel that the client dispatcher thread is pulling events from
-    sender: UnboundedSender<ClientEvent>,
+    sender: Mutex<UnboundedSender<ClientEvent>>,
 }
 
 impl Sender {
     /// Submit an event to the client dispatcher thread over the send side of the channel
-    pub fn send(&self, msg: QemuEventExec) {
-        match self.sender.send(ClientEvent::Event(msg)) {
+    pub fn send(&self, msg: QemuEventMsg) {
+        let sender = self.sender.lock().unwrap();
+        match sender.send(ClientEvent::Event(msg.clone())) {
             Ok(_) => {}
             Err(e) => {
                 eprintln!("Error sending message: {}", e);
@@ -78,7 +80,8 @@ impl Sender {
     }
 
     pub fn shutdown(&self) {
-        match self.sender.send(ClientEvent::Shutdown) {
+        let sender = self.sender.lock().unwrap();
+        match sender.send(ClientEvent::Shutdown) {
             Ok(_) => {}
             Err(e) => {
                 eprintln!("Error sending message: {}", e);
@@ -117,7 +120,7 @@ pub extern "C" fn setup(batch_size: usize, socket: *const c_char) -> *mut Sender
 
     let ustream = ustream.unwrap();
 
-    let stream = Framed::new(ustream, QemuEventCodec {});
+    let stream = Framed::new(ustream, QemuMsgCodec {});
     let (sender, receiver) = unbounded_channel();
 
     let sender = sender;
@@ -126,14 +129,14 @@ pub extern "C" fn setup(batch_size: usize, socket: *const c_char) -> *mut Sender
     run(runtime, stream, receiver, batch_size);
 
     Box::into_raw(Box::new(Sender {
-        sender: sender.clone(),
+        sender: Mutex::new(sender.clone()),
     }))
 }
 
 #[no_mangle]
 /// Submit an event to the client dispatcher thread. This function is called by the QEMU plugin
 /// to submit events via FFI
-pub extern "C" fn submit(client: *mut Sender, event: *mut QemuEventExec) {
+pub extern "C" fn submit(client: *mut Sender, event: *mut QemuEventMsg) {
     let sender = unsafe { &mut *client };
     let event = unsafe { &mut *event };
 
@@ -152,7 +155,7 @@ pub extern "C" fn teardown(client: *mut Sender) {
 
 #[no_mangle]
 /// Debug function to print out a qemu event struct
-pub extern "C" fn dbg_print_evt(event: *mut QemuEventExec) {
+pub extern "C" fn dbg_print_evt(event: *mut QemuEventMsg) {
     let event = unsafe { &mut *event };
     eprintln!("Event: {:?}", event);
 }

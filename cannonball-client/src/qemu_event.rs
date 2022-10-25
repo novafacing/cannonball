@@ -42,6 +42,8 @@ bitflags! {
         const EXECUTED     = 0b01000000;
         // Flag that QEMU has finished executing
         const FINISHED     = 0b10000000;
+        /// Flag that the event is a program load event
+        const LOAD         = 0b0000000100000000;
     }
 }
 
@@ -81,18 +83,23 @@ pub struct QemuPc {
     /// The program counter value. If the event has the PC flag, this value will be set to
     /// the program counter of the instruction
     pub pc: u64,
+    /// Whether this instruction occurs at a branch
+    pub branch: bool,
 }
 
 impl QemuPc {
     /// Construct a new `QemuPc` object
-    pub fn new(pc: u64) -> Self {
-        Self { pc }
+    pub fn new(pc: u64, branch: bool) -> Self {
+        Self { pc, branch }
     }
 
     /// Create a new random `QemuPc` object for debugging and benchmarking purposes
     pub fn new_random() -> Self {
         let mut rng = thread_rng();
-        Self { pc: rng.gen() }
+        Self {
+            pc: rng.gen(),
+            branch: rng.gen(),
+        }
     }
 }
 
@@ -100,6 +107,7 @@ impl ToBytes for QemuPc {
     /// Serialize the `QemuPc` object to bytes
     fn to_bytes(&self, bytes: &mut BytesMut) {
         bytes.put_u64(self.pc);
+        bytes.put_u8(self.branch as u8);
     }
 }
 
@@ -108,6 +116,7 @@ impl FromBytes for QemuPc {
     fn from_bytes(bytes: &mut BytesMut) -> Self {
         Self {
             pc: bytes.get_u64(),
+            branch: bytes.get_u8() != 0,
         }
     }
 }
@@ -171,86 +180,58 @@ impl FromBytes for QemuInstr {
         }
     }
 }
-
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Serialize)]
 /// The read event
-pub struct QemuRead {
-    /// The virtual address of the read
+pub struct QemuMemAccess {
+    /// PC of the instruction that caused the read/write
+    pc: u64,
+    /// The virtual address of the read/write
     addr: u64,
+    /// Whether it was a read or write
+    is_write: bool,
 }
 
-impl QemuRead {
-    /// Construct a new `QemuRead` object
-    pub fn new(addr: u64) -> Self {
-        Self { addr }
+impl QemuMemAccess {
+    /// Construct a new `QemuMemAccess` object
+    pub fn new(pc: u64, addr: u64, is_write: bool) -> Self {
+        Self { pc, addr, is_write }
     }
 
     /// For performance testing only
     pub fn new_random() -> Self {
         let mut rng = thread_rng();
         Self {
+            pc: rng.gen(),
             addr: rng.gen_range(0..u64::MAX),
+            is_write: rng.gen(),
         }
     }
 }
 
-impl ToBytes for QemuRead {
-    /// Serialize the `QemuRead` object to bytes
+impl ToBytes for QemuMemAccess {
+    /// Serialize the `QemuMemAccess` object to bytes
     fn to_bytes(&self, bytes: &mut BytesMut) {
+        bytes.put_u64(self.pc);
         bytes.put_u64(self.addr);
+        bytes.put_u8(self.is_write as u8);
     }
 }
 
-impl FromBytes for QemuRead {
-    /// Deserialize the `QemuRead` object from bytes
+impl FromBytes for QemuMemAccess {
+    /// Deserialize the `QemuMemAccess` object from bytes
     fn from_bytes(bytes: &mut BytesMut) -> Self {
+        let pc = bytes.get_u64();
         let addr = bytes.get_u64();
-        QemuRead { addr }
-    }
-}
-
-#[repr(C)]
-#[derive(Copy, Clone, Debug, Serialize)]
-/// The write event
-pub struct QemuWrite {
-    /// The virtual address of the write
-    addr: u64,
-}
-
-impl QemuWrite {
-    /// Construct a new `QemuWrite` object
-    pub fn new(addr: u64) -> Self {
-        Self { addr }
-    }
-
-    /// For performance testing only
-    pub fn new_random() -> Self {
-        let mut rng = thread_rng();
-        Self {
-            addr: rng.gen_range(0..u64::MAX),
-        }
-    }
-}
-
-impl ToBytes for QemuWrite {
-    /// Serialize the `QemuWrite` object to bytes
-    fn to_bytes(&self, bytes: &mut BytesMut) {
-        bytes.put_u64(self.addr);
-    }
-}
-
-impl FromBytes for QemuWrite {
-    /// Deserialize the `QemuWrite` object from bytes
-    fn from_bytes(bytes: &mut BytesMut) -> Self {
-        let addr = bytes.get_u64();
-        QemuWrite { addr }
+        let is_write = bytes.get_u8() != 0;
+        QemuMemAccess { pc, addr, is_write }
     }
 }
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Serialize)]
 /// The syscall event
+/// We don't know PC information, but we ensure we lock the sender when we submit messages
 pub struct QemuSyscall {
     /// The syscall number that was executed
     num: i64,
@@ -313,218 +294,174 @@ impl FromBytes for QemuSyscall {
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Serialize)]
-/// The branch event
-pub struct QemuBranch {
-    /// Whether a branch occurred. The Pc event will also be set to the pc of the branch.
-    branch: bool,
+// The load event
+pub struct QemuLoad {
+    min: u64,
+    max: u64,
+    /// Only set if this is the main object
+    entry: u64,
+    prot: u8,
 }
 
-impl QemuBranch {
-    /// Construct a new `QemuBranch` object
-    pub fn new(branch: bool) -> Self {
-        Self { branch }
+impl QemuLoad {
+    /// Construct a new `QemuLoad` object
+    pub fn new(min: u64, max: u64, entry: u64, prot: u8) -> Self {
+        Self {
+            min,
+            max,
+            entry,
+            prot,
+        }
     }
 
     /// For performance testing only
     pub fn new_random() -> Self {
         let mut rng = thread_rng();
-        Self { branch: rng.gen() }
+
+        Self {
+            min: rng.gen_range(0..u64::MAX),
+            max: rng.gen_range(0..u64::MAX),
+            entry: rng.gen_range(0..u64::MAX),
+            prot: rng.gen_range(0..u8::MAX),
+        }
     }
 }
 
-impl ToBytes for QemuBranch {
-    /// Serialize the `QemuBranch` object to bytes
+impl ToBytes for QemuLoad {
+    /// Serialize the `QemuLoad` object to bytes
     fn to_bytes(&self, bytes: &mut BytesMut) {
-        bytes.put_u8(self.branch as u8);
+        bytes.put_u64(self.min);
+        bytes.put_u64(self.max);
+        bytes.put_u64(self.entry);
+        bytes.put_u8(self.prot);
     }
 }
 
-impl FromBytes for QemuBranch {
-    /// Deserialize the `QemuBranch` object from bytes
+impl FromBytes for QemuLoad {
+    /// Deserialize the `QemuLoad` object from bytes
     fn from_bytes(bytes: &mut BytesMut) -> Self {
-        let branch = bytes.get_u8() != 0;
-        QemuBranch { branch }
+        let min = bytes.get_u64();
+        let max = bytes.get_u64();
+        let entry = bytes.get_u64();
+        let prot = bytes.get_u8();
+
+        QemuLoad {
+            min,
+            max,
+            entry,
+            prot,
+        }
     }
 }
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Serialize)]
-/// The event container for an executed event
-pub struct QemuEventExec {
-    // This is a C struct, we can't just use Option<> easily so we just flag whether or not
-    // the fields are valid -- everything is pretty small so this is fine...FOR NOW
-    // TODO: Make this structure more efficient if possible
-    /// Flags indicating what events are set/valid
-    pub flags: EventFlags,
-
-    /// The program counter of the execution
-    pc: QemuPc,
-    /// The instr event
-    instr: QemuInstr,
+pub enum QemuEvent {
+    /// The program counter event
+    Pc(QemuPc),
+    /// The instruction event
+    Instr(QemuInstr),
     /// The read event
-    read: QemuRead,
-    /// The write event
-    write: QemuWrite,
+    MemAccess(QemuMemAccess),
     /// The syscall event
-    syscall: QemuSyscall,
-    /// The branch event
-    branch: QemuBranch,
+    Syscall(QemuSyscall),
+    /// The load event
+    Load(QemuLoad),
 }
 
-impl QemuEventExec {
-    /// Construct a new `QemuEventExec` object
-    pub fn new(
-        pc: Option<QemuPc>,
-        instr: Option<QemuInstr>,
-        read: Option<QemuRead>,
-        write: Option<QemuWrite>,
-        syscall: Option<QemuSyscall>,
-        branch: Option<QemuBranch>,
-    ) -> Self {
-        let (has_pc, pc) = match pc {
-            Some(pc) => (true, pc),
-            None => (false, QemuPc::new(0)),
-        };
-        let (has_instrs, instr) = match instr {
-            Some(instr) => (true, instr),
-            None => (false, QemuInstr::new([0u8; MAX_OPCODE_SIZE], 0)),
-        };
-        let (has_reads, read) = match read {
-            Some(read) => (true, read),
-            None => (false, QemuRead::new(0)),
-        };
-        let (has_writes, write) = match write {
-            Some(write) => (true, write),
-            None => (false, QemuWrite::new(0)),
-        };
-        let (has_syscalls, syscall) = match syscall {
-            Some(syscall) => (true, syscall),
-            None => (false, QemuSyscall::new(0, 0, [0; 8])),
-        };
-        let (has_branches, branch) = match branch {
-            Some(branch) => (true, branch),
-            None => (false, QemuBranch::new(false)),
-        };
+#[repr(C)]
+#[derive(Copy, Clone, Debug, Serialize)]
+/// The event message
+pub struct QemuEventMsg {
+    /// The flags indicating which event is present
+    pub flags: EventFlags,
+    /// The event
+    pub event: QemuEvent,
+}
 
-        let has_reads_writes = has_reads || has_writes;
-
-        let flags: EventFlags = EventFlags::from(
-            has_pc,
-            has_instrs,
-            has_reads_writes,
-            has_syscalls,
-            has_branches,
-        );
-
-        Self {
-            flags,
-            pc,
-            instr,
-            read,
-            write,
-            syscall,
-            branch,
-        }
+impl QemuEventMsg {
+    /// Construct a new `QemuEventMsg` object
+    pub fn new(flags: EventFlags, event: QemuEvent) -> Self {
+        Self { flags, event }
     }
 
     /// For performance testing only
     pub fn new_random() -> Self {
         let mut rng = thread_rng();
-        let pc = if rng.gen() {
-            Some(QemuPc::new_random())
-        } else {
-            None
-        };
-        let instr = if rng.gen() {
-            Some(QemuInstr::new_random())
-        } else {
-            None
-        };
-        let read = if rng.gen() {
-            Some(QemuRead::new_random())
-        } else {
-            None
-        };
-        let write = if rng.gen() {
-            Some(QemuWrite::new_random())
-        } else {
-            None
-        };
-        let syscall = if rng.gen() {
-            Some(QemuSyscall::new_random())
-        } else {
-            None
-        };
-        let branch = if rng.gen() {
-            Some(QemuBranch::new_random())
-        } else {
-            None
+        let flags = EventFlags::from_bits_truncate(rng.gen_range(0..u32::MAX));
+        let event = match rng.gen_range(0..7) {
+            0 => QemuEvent::Pc(QemuPc::new_random()),
+            1 => QemuEvent::Instr(QemuInstr::new_random()),
+            2 => QemuEvent::MemAccess(QemuMemAccess::new_random()),
+            4 => QemuEvent::Syscall(QemuSyscall::new_random()),
+            6 => QemuEvent::Load(QemuLoad::new_random()),
+            _ => unreachable!(),
         };
 
-        Self::new(pc, instr, read, write, syscall, branch)
+        Self { flags, event }
     }
 }
 
-impl ToBytes for QemuEventExec {
-    /// Serialize the `QemuEventExec` object to bytes
+impl ToBytes for QemuEventMsg {
+    /// Serialize the `QemuEventMsg` object to bytes
     fn to_bytes(&self, bytes: &mut BytesMut) {
         bytes.put_u32(self.flags.bits());
-        self.pc.to_bytes(bytes);
-        self.instr.to_bytes(bytes);
-        self.read.to_bytes(bytes);
-        self.write.to_bytes(bytes);
-        self.syscall.to_bytes(bytes);
-        self.branch.to_bytes(bytes);
-    }
-}
-
-impl FromBytes for QemuEventExec {
-    /// Deserialize the `QemuEventExec` object from bytes
-    fn from_bytes(bytes: &mut BytesMut) -> Self {
-        let flags = EventFlags::from_bits_truncate(bytes.get_u32());
-        let pc = QemuPc::from_bytes(bytes);
-        let instr = QemuInstr::from_bytes(bytes);
-        let read = QemuRead::from_bytes(bytes);
-        let write = QemuWrite::from_bytes(bytes);
-        let syscall = QemuSyscall::from_bytes(bytes);
-        let branch = QemuBranch::from_bytes(bytes);
-
-        QemuEventExec {
-            flags,
-            pc,
-            instr,
-            read,
-            write,
-            syscall,
-            branch,
+        match self.event {
+            QemuEvent::Pc(ref event) => event.to_bytes(bytes),
+            QemuEvent::Instr(ref event) => event.to_bytes(bytes),
+            QemuEvent::MemAccess(ref event) => event.to_bytes(bytes),
+            QemuEvent::Syscall(ref event) => event.to_bytes(bytes),
+            QemuEvent::Load(ref event) => event.to_bytes(bytes),
         }
     }
 }
 
-/// Codec for serializing/deserializing the `QemuEventExec` object to/from bytes
-pub struct QemuEventCodec {}
+impl FromBytes for QemuEventMsg {
+    /// Deserialize the `QemuEventMsg` object from bytes
+    fn from_bytes(bytes: &mut BytesMut) -> Self {
+        let flags = EventFlags::from_bits_truncate(bytes.get_u32());
+        let event = if flags.contains(EventFlags::PC) {
+            QemuEvent::Pc(QemuPc::from_bytes(bytes))
+        } else if flags.contains(EventFlags::INSTRS) {
+            QemuEvent::Instr(QemuInstr::from_bytes(bytes))
+        } else if flags.contains(EventFlags::READS_WRITES) {
+            QemuEvent::MemAccess(QemuMemAccess::from_bytes(bytes))
+        } else if flags.contains(EventFlags::SYSCALLS) {
+            QemuEvent::Syscall(QemuSyscall::from_bytes(bytes))
+        } else if flags.contains(EventFlags::LOAD) {
+            QemuEvent::Load(QemuLoad::from_bytes(bytes))
+        } else {
+            unreachable!()
+        };
 
-impl Encoder<QemuEventExec> for QemuEventCodec {
+        QemuEventMsg { flags, event }
+    }
+}
+
+/// Codec for serializing/deserializing the `QemuEventExec` object to/from bytes
+pub struct QemuMsgCodec {}
+
+impl Encoder<QemuEventMsg> for QemuMsgCodec {
     type Error = std::io::Error;
 
     /// Encode the `QemuEventExec` object to bytes
-    fn encode(&mut self, item: QemuEventExec, dst: &mut BytesMut) -> Result<(), Self::Error> {
+    fn encode(&mut self, item: QemuEventMsg, dst: &mut BytesMut) -> Result<(), Self::Error> {
         item.to_bytes(dst);
         Ok(())
     }
 }
 
-impl Decoder for QemuEventCodec {
-    type Item = QemuEventExec;
+impl Decoder for QemuMsgCodec {
+    type Item = QemuEventMsg;
     type Error = std::io::Error;
 
     /// Decode a `QemuEventExec` object from bytes
     fn decode(&mut self, src: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
-        if src.len() < size_of::<QemuEventExec>() {
+        if src.len() < size_of::<QemuEventMsg>() {
             return Ok(None);
         }
 
-        let exec = QemuEventExec::from_bytes(src);
+        let exec = QemuEventMsg::from_bytes(src);
         return Ok(Some(exec));
     }
 }
