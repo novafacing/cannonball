@@ -25,3 +25,5 @@ cargo build --release --lib --target-dir "${BUILDDIR}" \
     --manifest-path "${SCRIPT_DIR}/Cargo.toml"
 
 cp "${BUILDDIR}/release/${LIBNAME}" "${BUILDDIR}/${LIBNAME}"
+find "${BUILDDIR}/release/build/" -name "cannonball-client.h" \
+    -exec cp {} "${BUILDDIR}/cannonball-client.h" \;

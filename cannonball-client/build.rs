@@ -3,10 +3,10 @@ extern crate cbindgen;
 use std::{env::var, fs::create_dir_all, path::PathBuf};
 
 fn target_dir() -> PathBuf {
-    if let Ok(target) = var("CARGO_TARGET_DIR") {
+    if let Ok(target) = var("OUT_DIR") {
         PathBuf::from(target)
     } else {
-        PathBuf::from(var("CARGO_MANIFEST_DIR").unwrap()).join("target")
+        panic!("OUT_DIR not set");
     }
 }
 
@@ -43,3 +43,4 @@ fn main() {
             ffi_outdir.as_os_str().to_string_lossy()
         ));
 }
+
