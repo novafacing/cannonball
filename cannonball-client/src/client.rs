@@ -3,9 +3,7 @@
 //! to create the pipes and socket and start a thread to listen for events, and to submit events
 //! to the socket, respectively.
 use std::ffi::CStr;
-use std::fs::remove_file;
 use std::mem::ManuallyDrop;
-use std::path::Path;
 use std::process::exit;
 use std::thread::sleep;
 use std::time::Duration;

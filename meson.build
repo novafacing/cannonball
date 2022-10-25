@@ -25,14 +25,15 @@ src_files = [
     'src/callback.c',
     'src/install.c',
     'src/logging.c',
+    libcannonball_header,
 ]
 
 libcannonball = shared_module(
     'cannonball',
     src_files,
-    include_directories: [inc_dir, qemu_inc_dir, cannonball_client_inc_dir],
+    include_directories: [inc_dir, qemu_inc_dir],
     dependencies: [libglib, libgobject],
-    link_with: [libcannonball_client]
+    link_with: [libcannonball_lib]
 )
 
 subdir('cannonball-tools')

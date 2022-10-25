@@ -47,6 +47,7 @@ static EventFlags flags = {0};
 #define SYSCALLS(f) (f.bits & EventFlags_SYSCALLS.bits)
 #define BRANCHES(f) (f.bits & EventFlags_BRANCHES.bits)
 #define EXECUTED(f) (f.bits & EventFlags_EXECUTED.bits)
+#define FINISHED(f) (f.bits & EventFlags_FINISHED.bits)
 
 /// Setters for the flags
 #define SETPC(f) (f.bits |= EventFlags_PC.bits)
@@ -55,6 +56,7 @@ static EventFlags flags = {0};
 #define SETSYSCALLS(f) (f.bits |= EventFlags_SYSCALLS.bits)
 #define SETBRANCHES(f) (f.bits |= EventFlags_BRANCHES.bits)
 #define SETEXECUTED(f) (f.bits |= EventFlags_EXECUTED.bits)
+#define SETFINISHED(f) (f.bits |= EventFlags_FINISHED.bits)
 
 /// An event is ready for submission if all requested instrumentation has been set on it
 /// and it isn't a syscall event (because if it is it'll be ready on syscall ret and we
@@ -216,6 +218,26 @@ static void callback_after_syscall(qemu_plugin_id_t id, unsigned int vcpu_idx,
     g_mutex_unlock(&syscall_evt_lock);
 }
 
+static void callback_on_vcpu_exit(qemu_plugin_id_t id, unsigned int vcpu_idx) {
+    g_mutex_lock(&syscall_evt_lock);
+    g_mutex_lock(&exec_htable_lock);
+
+    // Send an event signaling the end of the trace
+    QemuEventExec *end_evt = (QemuEventExec *)calloc(1, sizeof(QemuEventExec));
+    SETFINISHED(end_evt->flags);
+    submit(sender, end_evt);
+
+    g_hash_table_remove_all(exec_htable);
+
+    if (syscall_evt != NULL) {
+        free(syscall_evt);
+        syscall_evt = NULL;
+    }
+
+    g_mutex_unlock(&exec_htable_lock);
+    g_mutex_unlock(&syscall_evt_lock);
+}
+
 /// Initialize the plugin's callbacks and set up the pipe to the consumer
 ErrorCode callback_init(qemu_plugin_id_t id, bool trace_pc, bool trace_read,
                         bool trace_write, bool trace_instr, bool trace_syscall,
@@ -251,6 +273,8 @@ ErrorCode callback_init(qemu_plugin_id_t id, bool trace_pc, bool trace_read,
         qemu_plugin_register_vcpu_syscall_ret_cb(id, callback_after_syscall);
         log_info("Registered syscall callbacks.\n");
     }
+
+    qemu_plugin_register_vcpu_exit_cb(id, callback_on_vcpu_exit);
 
     log_info("Initialized plugin callbacks.\n");
 

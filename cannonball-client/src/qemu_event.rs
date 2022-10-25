@@ -40,6 +40,8 @@ bitflags! {
         const BRANCHES     = 0b00100000;
         // Flag that an event has executed (used internally by the QEMU plugin)
         const EXECUTED     = 0b01000000;
+        // Flag that QEMU has finished executing
+        const FINISHED     = 0b10000000;
     }
 }
 
