@@ -87,25 +87,6 @@ typedef struct QemuEventMsgMemWrapper {
 /// Whether the instrumentation is set to not track instructions at all
 #define NOINSN(f) (!PC(f) && !READS_WRITES(f) && !INSTRS(f) && !BRANCHES(f))
 
-#define SUBMIT(e)                                                                      \
-    do {                                                                               \
-        if (sender) {                                                                  \
-            submit(sender, e);                                                         \
-            free(e);                                                                   \
-            e = NULL;                                                                  \
-        }                                                                              \
-    } while (0)
-
-#define SUBMITMEM(m)                                                                   \
-    do {                                                                               \
-        if (sender && m->exec && m->mem) {                                             \
-            SUBMIT(m->msg);                                                            \
-            free(m->msg);                                                              \
-            free(m);                                                                   \
-            m = NULL;                                                                  \
-        }                                                                              \
-    } while (0)
-
 static QemuEventMsg *newpc(uint64_t pc, bool branch) {
     QemuEventMsg *evt = (QemuEventMsg *)calloc(1, sizeof(QemuEventMsg));
     SETPC(evt->flags);
@@ -241,6 +222,9 @@ static void callback_on_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
         start_code = qemu_plugin_start_code();
         end_code = qemu_plugin_end_code();
         entry_code = qemu_plugin_entry_code();
+        QemuEventMsg *load_msg = newload(start_code, end_code, entry_code, 0x7);
+        submit(sender, load_msg);
+        free(load_msg);
     }
 
     for (size_t i = BRANCHONLY(flags) ? num_insns - 1 : 0; i < num_insns; i++) {
@@ -356,9 +340,6 @@ ErrorCode callback_init(qemu_plugin_id_t id, bool trace_pc, bool trace_read,
 
     log_info("Registering callback for vcpu exit\n");
     qemu_plugin_register_atexit_cb(id, callback_atexit, NULL);
-
-    QemuEventMsg *load_msg = newload(start_code, end_code, entry_code, 0x7);
-    SUBMIT(load_msg);
 
     log_info("Initialized plugin callbacks.\n");
 
