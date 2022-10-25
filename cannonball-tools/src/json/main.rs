@@ -71,6 +71,7 @@ async fn handle(stream: StdUnixStream, syscalls: bool) {
             // println!("{}", serde_json::to_string(&event).unwrap());
             println!("Received {} events", ctr);
             println!("Received event: {:?}", event);
+            ctr += 1;
 
             if event.flags.contains(EventFlags::FINISHED) {
                 println!("Received finished event");

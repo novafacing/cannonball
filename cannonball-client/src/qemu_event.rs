@@ -185,11 +185,11 @@ impl FromBytes for QemuInstr {
 /// The read event
 pub struct QemuMemAccess {
     /// PC of the instruction that caused the read/write
-    pc: u64,
+    pub pc: u64,
     /// The virtual address of the read/write
-    addr: u64,
+    pub addr: u64,
     /// Whether it was a read or write
-    is_write: bool,
+    pub is_write: bool,
 }
 
 impl QemuMemAccess {
@@ -234,11 +234,11 @@ impl FromBytes for QemuMemAccess {
 /// We don't know PC information, but we ensure we lock the sender when we submit messages
 pub struct QemuSyscall {
     /// The syscall number that was executed
-    num: i64,
+    pub num: i64,
     /// The return value of the syscall
-    rv: i64,
+    pub rv: i64,
     /// The syscall arguments (NOTE: any pointers are not visible)
-    args: [u64; NUM_SYSCALL_ARGS],
+    pub args: [u64; NUM_SYSCALL_ARGS],
 }
 
 impl QemuSyscall {
@@ -296,11 +296,11 @@ impl FromBytes for QemuSyscall {
 #[derive(Copy, Clone, Debug, Serialize)]
 // The load event
 pub struct QemuLoad {
-    min: u64,
-    max: u64,
+    pub min: u64,
+    pub max: u64,
     /// Only set if this is the main object
-    entry: u64,
-    prot: u8,
+    pub entry: u64,
+    pub prot: u8,
 }
 
 impl QemuLoad {
