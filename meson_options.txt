@@ -78,5 +78,6 @@ option(
         'x86_64-linux-user',
         'xtensaeb-linux-user',
         'xtensa-linux-user',
-    ]
+    ],
+    yield: true
 )
