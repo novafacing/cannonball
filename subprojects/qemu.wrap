@@ -1,4 +1,0 @@
-[wrap-git]
-directory=qemu
-url=https://github.com/novafacing/meson-qemu.git
-revision=v0.0.4
