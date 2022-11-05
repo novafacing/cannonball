@@ -2,7 +2,7 @@
 #include <string.h>
 
 #include "callback.h"
-#include "cannonball-client.h"
+#include "cannonball.h"
 #include "error.h"
 #include "logging.h"
 #include "qemu-plugin.h"

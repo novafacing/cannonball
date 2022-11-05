@@ -334,7 +334,7 @@ ErrorCode args_parse(int argc, char **argv) {
         option = &options[j];
         opt_seen = false;
 
-        for (size_t i = 0; i < argc; i++) {
+        for (int i = 0; i < argc; i++) {
             fullarg = argv[i];
 
             // TODO: This should cache the split args so we only have to split them once
