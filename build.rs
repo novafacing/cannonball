@@ -40,11 +40,13 @@ fn main() {
         .unwrap();
 
     // Tell cargo to link with libglib
-    println!(
-        "cargo:rustc-link-search=native={}",
-        libglib.link_paths[0].display()
-    );
-    println!("cargo:rustc-link-lib=glib-2.0");
+    for link_path in libglib.link_paths {
+        println!("cargo:rustc-link-search=native={}", link_path.display());
+    }
+
+    for link_file in libglib.libs {
+        println!("cargo:rustc-link-lib={}", link_file);
+    }
 
     Build::new()
         .file("plugin/src/args.c")
