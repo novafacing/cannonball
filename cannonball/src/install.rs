@@ -1,6 +1,8 @@
 //! Plugin installation
 //!
-//! This module will handle installation and registration with QEMU.
+//! This module will handle installation and registration with QEMU. It exports the
+//! `qemu_plugin_install` function which is called by QEMU when the plugin is loaded. This
+//! function will run setup callbacks and register static callbacks with QEMU.
 
 use inventory;
 use libc::{c_char, c_int};

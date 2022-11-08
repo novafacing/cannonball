@@ -48,8 +48,8 @@ impl QEMUArg {
 
 #[derive(Debug)]
 pub struct Args {
-    raw: Vec<String>,
-    args: HashMap<String, QEMUArg>,
+    pub raw: Vec<String>,
+    pub args: HashMap<String, QEMUArg>,
 }
 
 impl Args {
