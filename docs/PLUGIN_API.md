@@ -80,18 +80,24 @@ it isn't because your code is wrong if it isn't working for you either.
 
 ### Callback API
 
+#### Unconditionally callable
+
 * `void qemu_plugin_register_vcpu_init_cb(qemu_plugin_id_t id, qemu_plugin_vcpu_simple_cb_t cb);`
 * `void qemu_plugin_register_vcpu_exit_cb(qemu_plugin_id_t id, qemu_plugin_vcpu_simple_cb_t cb);`
 * `void qemu_plugin_register_vcpu_idle_cb(qemu_plugin_id_t id, qemu_plugin_vcpu_simple_cb_t cb);`
 * `void qemu_plugin_register_vcpu_resume_cb(qemu_plugin_id_t id, qemu_plugin_vcpu_simple_cb_t cb);`
 * `void qemu_plugin_register_vcpu_tb_trans_cb(qemu_plugin_id_t id, qemu_plugin_vcpu_tb_trans_cb_t cb);`
+* `void qemu_plugin_register_vcpu_syscall_cb(qemu_plugin_id_t id, qemu_plugin_vcpu_syscall_cb_t cb);`
+* `void qemu_plugin_register_vcpu_syscall_ret_cb(qemu_plugin_id_t id, qemu_plugin_vcpu_syscall_ret_cb_t cb);`
+* `void qemu_plugin_register_atexit_cb(qemu_plugin_id_t id, qemu_plugin_udata_cb_t cb, void *userdata); `
+* `void qemu_plugin_register_flush_cb(qemu_plugin_id_t id, qemu_plugin_simple_cb_t cb);`
+
+#### Dependent
+
+
 * `void qemu_plugin_register_vcpu_tb_exec_cb(struct qemu_plugin_tb *tb, qemu_plugin_vcpu_udata_cb_t cb, enum qemu_plugin_cb_flags flags, void *userdata);`
 * `void qemu_plugin_register_vcpu_tb_exec_inline(struct qemu_plugin_tb *tb, enum qemu_plugin_op op, void *ptr, uint64_t imm);`
 * `void qemu_plugin_register_vcpu_insn_exec_cb(struct qemu_plugin_insn *insn, qemu_plugin_vcpu_udata_cb_t cb, enum qemu_plugin_cb_flags flags, void *userdata);`
 * `void qemu_plugin_register_vcpu_insn_exec_inline(struct qemu_plugin_insn *insn, enum qemu_plugin_op op, void *ptr, uint64_t imm);`
 * `void qemu_plugin_register_vcpu_mem_cb(struct qemu_plugin_insn *insn, qemu_plugin_vcpu_mem_cb_t cb, enum qemu_plugin_cb_flags flags, enum qemu_plugin_mem_rw rw, void *userdata);`
 * `void qemu_plugin_register_vcpu_mem_inline(struct qemu_plugin_insn *insn, enum qemu_plugin_mem_rw rw, enum qemu_plugin_op op, void *ptr, uint64_t imm);`
-* `void qemu_plugin_register_vcpu_syscall_cb(qemu_plugin_id_t id, qemu_plugin_vcpu_syscall_cb_t cb);`
-* `void qemu_plugin_register_vcpu_syscall_ret_cb(qemu_plugin_id_t id, qemu_plugin_vcpu_syscall_ret_cb_t cb);`
-* `void qemu_plugin_register_atexit_cb(qemu_plugin_id_t id, qemu_plugin_udata_cb_t cb, void *userdata); `
-* `void qemu_plugin_register_flush_cb(qemu_plugin_id_t id, qemu_plugin_simple_cb_t cb);`

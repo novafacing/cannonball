@@ -7,9 +7,13 @@ use log::{error, LevelFilter};
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use simple_logger::SimpleLogger;
 use std::{
+    fs::File,
+    io::{Read, Write},
     os::unix::net::{UnixListener as StdUnixListener, UnixStream as StdUnixStream},
     path::{Path, PathBuf},
     process::exit,
+    sync::{Arc, Mutex},
+    thread,
     time::Duration,
 };
 use tokio::{
@@ -19,15 +23,13 @@ use tokio::{
 };
 use tokio_util::codec::Framed;
 
-use cannonball_client::qemu_event::{EventFlags, QemuMsgCodec};
+use cannonball::args::cannonball_args;
+use cannonball::qemu_event::{EventFlags, QemuMsgCodec};
+use memfd_exec::{MemFdExecutable, Stdio};
+use qemu::qemu_x86_64;
 
 #[derive(Parser, Debug)]
 struct Args {
-    /// A path to a qemu executable. If not provided and the tool was compiled with
-    /// qemu built-in, the built-in qemu will be used. If not provided and the tool
-    /// was not compiled with qemu built-in, the tool will yell at you :)
-    #[clap(short, long)]
-    qemu: Option<String>,
     /// A path to the plugin
     #[clap(short, long)]
     plugin: String,
@@ -41,7 +43,7 @@ struct Args {
     #[clap(short, long)]
     syscalls: bool,
     /// Whether to log the pc
-    #[clap(short, long)]
+    #[clap(short = 'P', long)]
     pc: bool,
     /// Whether to log reads
     #[clap(short, long)]
@@ -55,6 +57,9 @@ struct Args {
     /// The program to run
     #[clap()]
     program: PathBuf,
+    /// An input file to feed to the program
+    #[clap(short = 'I', long)]
+    input_file: Option<PathBuf>,
     /// The arguments to the program
     #[clap(num_args = 1.., last = true)]
     args: Vec<String>,
@@ -74,8 +79,13 @@ async fn handle(stream: StdUnixStream, syscalls: bool) {
     }
 }
 
-#[tokio::main]
-async fn main() {
+// #[tokio::main]
+fn main() {
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+
     let args = Args::parse();
     SimpleLogger::new()
         .with_level(args.log_level)
@@ -95,40 +105,32 @@ async fn main() {
         error!("Socket already exists: {}", sockname);
         return;
     }
-
-    tokio::spawn({
-        let sname = sockname.clone();
-        async move {
-            Command::new(args.qemu.unwrap_or_else(|| {
-            if cfg!(feature = "monolithic") {
-                // TODO: This isn't working yet though!
-                "qemu".to_string()
-            } else {
-                error!("No qemu executable provided");
-                exit(1);
-            }
-        }))
-        .arg("-plugin")
-        .arg(
-            format!(
-            "{},trace_branches={},trace_syscalls={},trace_pc={},trace_reads={},trace_writes={},trace_instrs={},sock_path={}",
+    let qemu_bytes = qemu_x86_64();
+    let mut qemu = MemFdExecutable::new("qemu-x86_64", qemu_bytes)
+        .args(cannonball_args(
             args.plugin,
-            if args.branches { "on" } else { "off" },
-            if args.syscalls { "on" } else { "off" },
-            if args.pc { "on" } else { "off" },
-            if args.reads { "on" } else { "off" },
-            if args.writes { "on" } else { "off" },
-            if args.instrs { "on" } else { "off" },
-            sname
-            )
-        )
+            args.branches,
+            args.syscalls,
+            args.pc,
+            args.reads,
+            args.writes,
+            args.instrs,
+            sockname.clone(),
+        ))
         .arg("--")
         .arg(args.program)
         .args(args.args)
-        .spawn().expect("QEMU failed to start")
-        .wait().await.expect("QEMU failed to run");
-        }
-    });
+        .stdin(if args.input_file.is_some() {
+            Stdio::piped()
+        } else {
+            Stdio::null()
+        })
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .expect("Failed to start qemu process");
+
+    let mut threads = Vec::new();
 
     let listener = match StdUnixListener::bind(sockname.clone()) {
         Ok(l) => l,
@@ -140,16 +142,37 @@ async fn main() {
 
     eprintln!("Waiting for connection on {:?}", listener.local_addr());
 
-    for stream in listener.incoming() {
-        match stream {
-            Ok(stream) => {
-                eprintln!("Got connection from {:?}", stream.peer_addr());
-                tokio::spawn(handle(stream, args.syscalls));
-            }
-            Err(e) => {
-                eprintln!("Error: {}", e);
-                break;
+    let listener_thread = thread::spawn(move || {
+        for stream in listener.incoming() {
+            match stream {
+                Ok(stream) => {
+                    eprintln!("Got connection from {:?}", stream.peer_addr());
+                    rt.spawn(handle(stream, args.syscalls));
+                }
+                Err(e) => {
+                    eprintln!("Error: {}", e);
+                    break;
+                }
             }
         }
+    });
+    threads.push(listener_thread);
+
+    if args.input_file.is_some() {
+        let mut stdin = qemu.stdin.take().unwrap();
+        let mut input_file = File::open(args.input_file.unwrap()).unwrap();
+        let mut buf = Vec::new();
+        input_file.read_to_end(&mut buf).unwrap();
+        let writer_thread = thread::spawn(move || {
+            stdin.write_all(&buf).unwrap();
+        });
+        threads.push(writer_thread);
+    }
+
+    let status = qemu.wait().unwrap();
+    eprintln!("Qemu exited with status: {}", status.code().unwrap());
+    // wait on the threads
+    for thread in threads {
+        thread.join().unwrap();
     }
 }
