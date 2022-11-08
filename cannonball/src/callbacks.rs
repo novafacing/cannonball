@@ -42,7 +42,7 @@
 //! // Example of a setup callback registration
 //! use inventory;
 //! use once_cell::sync::Lazy;
-//! use cannonball::callbacks::SetupCallback;
+//! use cannonball::callbacks::{SetupCallback, SetupCallbackType};
 //!
 //! inventory::submit! {
 //!     static scb: Lazy<SetupCallback> = Lazy::new(|| {

@@ -8,7 +8,7 @@ use libc::{c_char, c_int};
 use crate::{
     api::{qemu_info_t, qemu_plugin_id_t},
     args::Args,
-    callbacks::{Register, SetupCallback, SetupCallbackType, StaticCallbackType},
+    callbacks::{Register, SetupCallbackType, StaticCallbackType},
 };
 
 const PLUGIN_INSTALL_SUCCESS: c_int = 0;
