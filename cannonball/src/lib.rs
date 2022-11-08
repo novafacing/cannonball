@@ -3,7 +3,7 @@
 use libc::c_int;
 
 pub mod api;
-mod args;
+pub mod args;
 pub mod callbacks;
 pub mod install;
 
