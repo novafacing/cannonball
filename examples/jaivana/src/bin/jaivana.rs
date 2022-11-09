@@ -3,12 +3,12 @@
 //! This is the main entry point for the Jaivana driver, and puts *everything* together to
 //! create an all-in-one binary tracing tool.
 
-use std::path::PathBuf;
 
 use clap::Parser;
 use memfd_exec::{MemFdExecutable, Stdio};
 use qemu::qemu_x86_64;
-use tokio;
+
+use std::{path::PathBuf, env::var};
 
 #[derive(Parser, Debug)]
 /// Trace a program with the Jaivana QEMU plugin
@@ -40,5 +40,19 @@ struct Args {
     pub args: Vec<String>,
 }
 
-#[tokio::main]
-async fn main() {}
+fn main() {
+    let args = Args::parse();
+
+    let plugin = include_bytes!(var!(
+
+    let plugin_args = format!(
+        "log_insns={},log_branches={},log_opcodes={},log_syscalls={},log_mem={}",
+        args.insns, args.branches, args.opcodes, args.syscalls, args.mem
+    );
+
+    let qemu = qemu_x86_64();
+
+    let exe = MemFdExecutable::new("qemu-x86_64", qemu)
+        .arg("-plugin")
+        .arg(format!
+}
