@@ -3,12 +3,17 @@
 //! This is the main entry point for the Jaivana driver, and puts *everything* together to
 //! create an all-in-one binary tracing tool.
 
-
 use clap::Parser;
 use memfd_exec::{MemFdExecutable, Stdio};
 use qemu::qemu_x86_64;
 
-use std::{path::PathBuf, env::var};
+use std::{
+    env::temp_dir,
+    fs::{read, write},
+    io::{Read, Write},
+    path::PathBuf,
+    thread::spawn,
+};
 
 #[derive(Parser, Debug)]
 /// Trace a program with the Jaivana QEMU plugin
@@ -29,9 +34,11 @@ struct Args {
     #[clap(short, long)]
     pub mem: bool,
     /// An input file to feed to the program. If not set, the program will take input via this driver's stdin.
-    #[clap(short, long)]
+    #[clap(short = 'I', long)]
     pub input_file: Option<PathBuf>,
     /// An output file to write the program's output to. If not set, the program's output will be written to this driver's stdout.
+    #[clap(short = 'O', long)]
+    pub output_file: Option<PathBuf>,
     /// The program to run
     #[clap()]
     pub program: PathBuf,
@@ -43,16 +50,79 @@ struct Args {
 fn main() {
     let args = Args::parse();
 
-    let plugin = include_bytes!(var!(
+    #[cfg(debug_assertions)]
+    let plugin = include_bytes!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../target/debug/libjaivana.so"
+    ));
+
+    #[cfg(not(debug_assertions))]
+    let plugin = include_bytes!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../target/release/libjaivana.so"
+    ));
 
     let plugin_args = format!(
-        "log_insns={},log_branches={},log_opcodes={},log_syscalls={},log_mem={}",
+        "log_pc={},log_branch={},log_opcode={},log_syscall={},log_mem={}",
         args.insns, args.branches, args.opcodes, args.syscalls, args.mem
     );
 
     let qemu = qemu_x86_64();
 
-    let exe = MemFdExecutable::new("qemu-x86_64", qemu)
+    // Write the plugin to a temporary file
+    let plugin_path = temp_dir().join("libjaivana.so");
+
+    let program_path = args
+        .program
+        .canonicalize()
+        .unwrap()
+        .to_string_lossy()
+        .to_string();
+
+    write(&plugin_path, plugin).unwrap();
+
+    let mut exe = MemFdExecutable::new("qemu-x86_64", qemu)
         .arg("-plugin")
-        .arg(format!
+        .arg(format!(
+            "{},{}",
+            plugin_path.canonicalize().unwrap().to_string_lossy(),
+            plugin_args
+        ))
+        .arg("--")
+        .arg(program_path)
+        .args(args.args)
+        .stdin(if args.input_file.is_some() {
+            Stdio::piped()
+        } else {
+            Stdio::Inherit
+        })
+        .stdout(if args.output_file.is_some() {
+            Stdio::piped()
+        } else {
+            Stdio::Inherit
+        })
+        .stderr(Stdio::inherit())
+        .spawn()
+        .expect("Failed to spawn QEMU");
+
+    if let Some(input_file) = args.input_file {
+        let mut stdin = exe.stdin.take().expect("Failed to get stdin");
+        let input = read(input_file).expect("Failed to read input file");
+        spawn(move || {
+            stdin.write(&input).expect("Failed to write input");
+        });
+    }
+
+    if let Some(output_file) = args.output_file {
+        let mut stdout = exe.stdout.take().expect("Failed to get stdout");
+        let mut output = Vec::new();
+        spawn(move || {
+            stdout
+                .read_to_end(&mut output)
+                .expect("Failed to read output");
+            write(output_file, output).expect("Failed to write output");
+        });
+    }
+
+    exe.wait().expect("Failed to wait for QEMU");
 }
