@@ -10,7 +10,7 @@ name = "jaivana"
 crate-type = ["cdylib"]
 
 [dependencies]
-cannonball = { path = "../../cannonball" }
+cannonball = "0.2.3"
 qemu = { version = "0.1.6", features = ["qemu-x86_64"] }
 libc = "0.2.137"
 lazy_static = "1.4.0"
