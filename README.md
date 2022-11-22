@@ -6,6 +6,14 @@ a QEMU TCG plugin in C, you can do with `cannonball`.
 Write plugins that run with minimal overhead and as much functionality as you can dream
 of!
 
+## Examples
+
+There are a couple examples provided here!
+
+* [`jaivana`](examples/jaivana/README.md) A simple tracer that logs a configurable set of events to a file or stdout.
+* [`mons meg`](examples/mons_meg/README.md) A tracer that logs the same events as Jaivana, but uses Tokio to run the trace in an async environment, with communication
+  with the host over a UNIX socket instead of anonymous pipes.
+
 ## Documentation
 
 Unfortunately, the documentation isn't building on `docs.rs`. Something about building
