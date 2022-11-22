@@ -1,0 +1,31 @@
+[package]
+name = "mons_meg"
+version = "0.1.1"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+name = "mons_meg"
+crate-type = ["cdylib"]
+
+[dependencies]
+cannonball = "0.2.3"
+qemu = { version = "0.1.6", features = ["qemu-x86_64"] }
+libc = "0.2.137"
+lazy_static = "1.4.0"
+inventory = "0.3.2"
+once_cell = "1.16.0"
+serde = { version = "1.0.147", features = ["derive"] }
+serde_json = "1.0.87"
+serde_cbor = "0.11.2"
+memfd-exec = "0.1.4"
+clap = { version = "4.0.22", features = ["derive"] }
+tokio = { version = "1.22.0", features = ["full"] }
+yaxpeax-x86 = "1.1.4"
+yaxpeax-arch = { version = "0.2.7", features = [
+    "std",
+    "address-parse",
+    "use-serde",
+] }
+rand = "0.8.5"
