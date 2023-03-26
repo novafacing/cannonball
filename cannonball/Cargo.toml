@@ -1,6 +1,6 @@
 [package]
 name = "cannonball"
-version = "0.2.3"
+version = "0.2.4"
 edition = "2021"
 description = "QEMU tracing framework"
 license = "MIT"
@@ -15,7 +15,7 @@ cbindgen = "0.24.3"
 bindgen = "0.61.0"
 # here's the trick, we only actually use the header file in cannonball, and any clients will need
 # to actually install qemu, so for us it is only a build dependency :megajoy:
-qemu = "0.1.6"
+qemu = "0.1.8"
 
 [dependencies]
 libc = "0.2.135"

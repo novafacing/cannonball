@@ -1,7 +1,7 @@
 extern crate cbindgen;
 
 use bindgen::builder;
-use qemu::include_qemu_plugin_h;
+use qemu::{include_qemu_plugin_h, __unbuilt_qemu_plugin_h};
 
 use std::{env::var, fs::write, path::PathBuf};
 
@@ -11,7 +11,15 @@ fn main() {
     let qemu_plugin_bindings = out_dir.join("qemu_plugin_bindings.rs");
 
     // Write the qemu plugin header
-    let qemu_plugin_header_contents = include_qemu_plugin_h();
+
+    let building_docs = var("DOCS_RS").is_ok();
+    
+    
+    let qemu_plugin_header_contents = if !building_docs {
+        include_qemu_plugin_h()
+    } else {
+        __unbuilt_qemu_plugin_h()
+    };
 
     write(&qemu_plugin_header, &qemu_plugin_header_contents)
         .expect("Failed to write qemu-plugin.h");

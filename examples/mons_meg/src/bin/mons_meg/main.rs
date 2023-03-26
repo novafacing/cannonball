@@ -8,7 +8,7 @@ use serde_cbor::Deserializer;
 use std::{
     error::Error,
     fs::File,
-    io::{Read, Write},
+    io::{BufRead, BufReader, Read, Write},
     os::unix::net::UnixListener,
     path::PathBuf,
 };
@@ -82,15 +82,33 @@ async fn run_qemu(
     let mut stderr = exe.stderr.take().expect("Failed to get stderr");
 
     let reader = spawn_blocking(move || {
-        let mut output = Vec::new();
-        stdout.read_to_end(&mut output).unwrap();
-        println!("Output: {:?}", output);
+        let mut line = String::new();
+        let mut out_reader = BufReader::new(stdout);
+        loop {
+            line.clear();
+            out_reader.read_line(&mut line).and_then(|l| {
+                let line = line.trim();
+                if !line.is_empty() {
+                    info!("{}", line.trim());
+                }
+                Ok(())
+            }).ok();
+        }
     });
 
     let ereader = spawn_blocking(move || {
-        let mut output = Vec::new();
-        stderr.read_to_end(&mut output).unwrap();
-        println!("Error: {:?}", output);
+        let mut line = String::new();
+        let mut err_reader = BufReader::new(stderr);
+        loop {
+            line.clear();
+            err_reader.read_line(&mut line).and_then(|l| {
+                let line = line.trim();
+                if !line.is_empty() {
+                    info!("{}", line.trim());
+                }
+                Ok(())
+            }).ok();
+        }
     });
 
     let waiter = spawn_blocking(move || {
@@ -193,7 +211,7 @@ async fn main() {
                         .expect("Failed to write to output file");
                 }
                 None => {
-                    println!("{:?}", event.unwrap());
+                    info!("{:?}", event.unwrap());
                 }
             }
         }
