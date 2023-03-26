@@ -14,14 +14,24 @@ There are a couple examples provided here!
 * [`mons meg`](examples/mons_meg/README.md) A tracer that logs the same events as Jaivana, but uses Tokio to run the trace in an async environment, with communication
   with the host over a UNIX socket instead of anonymous pipes.
 
-Take a look at them, they are the best way to learn how to use this framework.
+## Documentation
+
+Unfortunately, the documentation isn't building on `docs.rs`. Something about building
+the entirety of QEMU is busting their process limits a little! For now, you can build
+and view local docs with:
+
+```
+cargo doc --open
+```
+
+Or, the source code is all doc-stringed up :)
 
 ## Installation
 
 Just add this to your `Cargo.toml`:
 
 ```toml
-cannonball = "0.2.4"
+cannonball = "0.2.3"
 ```
 
 ## Example
