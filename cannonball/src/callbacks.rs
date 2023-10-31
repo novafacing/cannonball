@@ -23,7 +23,8 @@
 //!
 //! use inventory;
 //! use once_cell::sync::Lazy;
-//! use cannonball::callbacks::{Callback, StaticCallbackType, VCPUTBTransCallback};
+//! use cannonball::callbacks::{StaticCallbackType, VCPUTBTransCallback};
+//! use cannonball::api::qemu_plugin_tb;
 //!
 //! extern "C" fn testfn(id: u64, tb: *mut qemu_plugin_tb) {
 //!     println!("Hello from testfn! We are translating a TB!");

@@ -11,8 +11,8 @@ name = "cannonball"
 crate-type = ["cdylib", "lib"]
 
 [build-dependencies]
-cbindgen = "0.24.3"
-bindgen = "0.61.0"
+cbindgen = "0.26.0"
+bindgen = "0.68.1"
 # here's the trick, we only actually use the header file in cannonball, and any clients will need
 # to actually install qemu, so for us it is only a build dependency :megajoy:
 qemu = "0.1.10"
