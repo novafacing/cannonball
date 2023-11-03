@@ -10,7 +10,7 @@ name = "mons_meg"
 crate-type = ["cdylib"]
 
 [dependencies]
-cannonball = "0.2.3"
+cannonball = "0.2.6"
 qemu = { version = "0.1.6", features = ["qemu-x86_64"] }
 libc = "0.2.137"
 lazy_static = "1.4.0"
@@ -24,8 +24,8 @@ clap = { version = "4.0.22", features = ["derive"] }
 tokio = { version = "1.22.0", features = ["full"] }
 yaxpeax-x86 = "1.1.4"
 yaxpeax-arch = { version = "0.2.7", features = [
-    "std",
-    "address-parse",
-    "use-serde",
+  "std",
+  "address-parse",
+  "use-serde",
 ] }
 rand = "0.8.5"
