@@ -1,5 +1,11 @@
 # Cannonball 💣
 
+## DEPRECATION NOTICE
+
+This project has been superceded by the
+[qemu-plugin](https://github.com/novafacing/qemu-rs/tree/main/qemu) bindings
+provided by the [qemu-rs](https://github.com/novafacing/qemu-rs) project.
+
 Cannonball is a framework for building QEMU plugins in Rust! Anything you can do in
 a QEMU TCG plugin in C, you can do with `cannonball`.
 
